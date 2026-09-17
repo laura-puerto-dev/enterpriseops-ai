@@ -14,6 +14,7 @@ class Supplier(TimestampMixin, Base):
     __tablename__ = "suppliers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    tax_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     country: Mapped[str] = mapped_column(String(2), nullable=False)

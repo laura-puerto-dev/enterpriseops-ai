@@ -23,6 +23,7 @@ def seed_database() -> None:
             return
 
         supplier = Supplier(
+            tax_id="DE123456789",
             name="ACME Industrial Components",
             status="active",
             country="DE",
