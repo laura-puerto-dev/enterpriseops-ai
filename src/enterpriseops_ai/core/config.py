@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     postgres_db: str
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    openai_api_key: str
+    openai_api_key: str | None = None
 
     @property
     def database_url(self) -> str:
