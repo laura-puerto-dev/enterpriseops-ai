@@ -21,7 +21,7 @@ The system is designed to progressively combine:
 
 ## Current Status
 
-The deterministic enterprise-data foundation is complete.
+The deterministic enterprise-data foundation and the first semantic retrieval baseline are implemented.
 
 Currently implemented:
 
@@ -31,10 +31,16 @@ Currently implemented:
 - Alembic schema migrations
 - deterministic enterprise seed data
 - repository layer for suppliers, purchase orders, and service tickets
+- enterprise document corpus
+- recursive document chunking
+- OpenAI embedding generation
+- document and chunk persistence with pgvector
+- exact cosine-similarity retrieval with source metadata
+- document ingestion and semantic-search scripts
 - separate PostgreSQL integration-test database
 - pytest, Ruff, and strict mypy quality tooling
 
-AI functionality is intentionally being added incrementally after establishing deterministic enterprise data access.
+The current RAG baseline has been exercised end-to-end with real embeddings and semantic retrieval. Evaluation, controlled orchestration, LLM synthesis, observability, and reliability behavior are being added incrementally.
 
 ## Architecture
 
@@ -94,6 +100,24 @@ Create the deterministic development scenario:
 
 ```bash
 uv run python -m enterpriseops_ai.db.seed
+```
+
+Add an OpenAI API key to `.env` when running embedding-dependent functionality:
+
+```text
+OPENAI_API_KEY=...
+```
+
+Ingest the local enterprise document corpus:
+
+```bash
+uv run python -m enterpriseops_ai.scripts.ingest_documents
+```
+
+Run a semantic retrieval query:
+
+```bash
+uv run python -m enterpriseops_ai.scripts.search_documents "What should procurement do when a supplier reports a component shortage?"
 ```
 
 Run the API:

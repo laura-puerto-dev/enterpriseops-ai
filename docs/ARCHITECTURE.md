@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | In progress |
-| **Last updated** | 2026-09-17 |
+| **Last updated** | 2026-09-18 |
 | **Scope** | MVP |
 
 ## Overview
@@ -60,7 +60,11 @@ Additional services, infrastructure, abstractions, or agent autonomy should only
 
 ## Current Architecture
 
-Day 1 establishes two foundations that are not yet connected through application routes.
+The current implementation contains three foundations that are not yet connected through application routes:
+
+1. the FastAPI application foundation,
+2. deterministic enterprise data access,
+3. document ingestion and semantic retrieval over enterprise knowledge.
 
 ```text
 ┌──────────────────────────────┐
@@ -70,7 +74,7 @@ Day 1 establishes two foundations that are not yet connected through application
 
 
 ┌──────────────────────────────┐
-│        Repositories          │
+│   Deterministic Repositories │
 └──────────────┬───────────────┘
                │
                ▼
@@ -82,11 +86,26 @@ Day 1 establishes two foundations that are not yet connected through application
 ┌──────────────────────────────┐
 │ PostgreSQL + pgvector        │
 └──────────────────────────────┘
+               ▲
+               │
+┌──────────────┴───────────────┐
+│ Semantic Document Retrieval  │
+└──────────────▲───────────────┘
+               │
+┌──────────────┴───────────────┐
+│ Chunking + OpenAI Embeddings │
+└──────────────▲───────────────┘
+               │
+┌──────────────┴───────────────┐
+│ Enterprise Markdown Corpus   │
+└──────────────────────────────┘
 ```
 
 The FastAPI application currently exposes only the health endpoint.
 
 The deterministic repository layer is implemented and tested directly against PostgreSQL, but it is not yet exposed through API routes.
+
+The document retrieval foundation is also implemented independently of the API. Enterprise documents can be chunked, embedded, persisted in pgvector, and retrieved through exact cosine similarity search.
 
 Future AI capabilities will connect these foundations through controlled tools and orchestration.
 
@@ -110,7 +129,7 @@ A deterministic synthetic dataset provides a reproducible investigation scenario
 
 Database access is encapsulated through focused repositories.
 
-The current repositories provide deterministic operations for supplier lookup, delayed purchase-order retrieval, and supplier-related service-ticket retrieval.
+The current repositories provide deterministic operations for supplier lookup, delayed purchase-order retrieval, supplier-related service-ticket retrieval, and semantic document-chunk retrieval.
 
 Repositories receive their SQLAlchemy session externally and do not own transaction boundaries.
 
@@ -136,11 +155,11 @@ AI components should therefore operate through explicit capabilities rather than
 
 ## Persistence
 
-The MVP uses PostgreSQL for structured enterprise data.
+The MVP uses PostgreSQL for structured enterprise data and vector persistence.
 
-The PostgreSQL environment includes pgvector so that vector retrieval can be introduced without adding a separate vector database during the initial RAG implementation.
+The PostgreSQL environment includes pgvector, allowing relational enterprise data and document embeddings to coexist without introducing a separate vector database.
 
-This keeps the infrastructure small while allowing relational and vector retrieval to coexist.
+Document chunks store 1536-dimensional embeddings together with their textual content and document relationship. A surrogate identifier provides stable technical identity, while document ID and chunk index are constrained to be unique together.
 
 Schema evolution is managed through Alembic rather than application-startup table creation.
 
@@ -156,7 +175,11 @@ Each test runs inside an isolated transaction that is rolled back afterwards.
 
 This verifies real database behavior while keeping tests repeatable and independent.
 
-As higher layers are introduced, tests may use controlled substitutes for lower-level dependencies when the behavior of those dependencies is not the subject of the test.
+The document ingestion service is tested against real PostgreSQL while chunking and external embedding generation are replaced with controlled test doubles. This isolates ingestion orchestration while still verifying persistence behavior.
+
+The semantic retrieval repository is tested against real PostgreSQL and pgvector using controlled vectors, verifying cosine-distance ordering without depending on an external embedding provider.
+
+End-to-end diagnostic retrieval has also been exercised using real enterprise documents and real OpenAI embeddings.
 
 The current quality pipeline includes Ruff formatting, Ruff linting, strict mypy, and pytest.
 
@@ -218,33 +241,87 @@ The exact implementation of the AI portion will be refined through experimentati
 
 ---
 
-## Planned RAG Layer
+## RAG Retrieval Layer
 
-The next architectural increment introduces retrieval over internal enterprise documents.
+The first RAG retrieval baseline is implemented over a small corpus of internal enterprise documents.
 
-The baseline flow will be:
+The ingestion path is:
 
 ```text
-Document
-   ↓
-chunking
-   ↓
-embedding
-   ↓
-pgvector
-
-Question
-   ↓
-embedding
-   ↓
-vector retrieval
-   ↓
-relevant document chunks
-   ↓
-LLM context
+Enterprise Markdown document
+    ↓
+recursive chunking
+    ↓
+OpenAI embedding
+    ↓
+Document + DocumentChunk
+    ↓
+PostgreSQL + pgvector
 ```
 
-Chunking strategy, embedding configuration, retrieval parameters, and evaluation criteria will be documented after they have been implemented and tested.
+The retrieval path is:
+
+```text
+Question
+    ↓
+OpenAI embedding
+    ↓
+exact cosine similarity search
+    ↓
+top-k document chunks
+    ↓
+content + source metadata + distance
+```
+
+### Baseline configuration
+
+The initial retrieval baseline uses:
+
+- `RecursiveCharacterTextSplitter`
+- chunk size: 500 characters
+- chunk overlap: 50 characters
+- embedding model: `text-embedding-3-small`
+- embedding dimensions: 1536
+- vector store: PostgreSQL + pgvector
+- similarity metric: cosine distance
+- retrieval strategy: exact vector search
+- `top_k`: 3
+
+These values are baseline parameters for evaluation rather than assumed optimal configuration.
+
+### Retrieval strategy
+
+The MVP intentionally starts with exact vector similarity search rather than an approximate nearest-neighbor (ANN) index.
+
+At the current corpus size, an ANN index such as HNSW or IVFFlat would add indexing and tuning complexity without solving a measured performance problem. Exact search also provides a clean retrieval baseline, allowing retrieval quality to be evaluated without introducing ANN approximation as an additional variable.
+
+Initial end-to-end diagnostic queries showed relevant retrieval for supplier delivery delays, quality inspection holds, and component shortages.
+
+They also exposed an important limitation: vector search will still return the nearest chunks for an out-of-domain question even when none of those chunks is actually relevant. For this reason, nearest-neighbor retrieval must not be interpreted as proof of sufficient evidence.
+
+Relevance thresholds are not being chosen from a few manually inspected examples. The evaluation phase will use representative queries and a golden dataset to determine how retrieval behavior should distinguish relevant evidence from insufficient information.
+
+The retrieval architecture is designed to evolve based on measured quality and scale rather than adding retrieval techniques by default.
+
+Potential future improvements include:
+
+- HNSW or IVFFlat indexing when corpus size or query volume makes exact search too expensive.
+- Hybrid retrieval combining semantic vector search with lexical search for identifiers, product codes, purchase-order numbers, and enterprise terminology.
+- Reranking retrieved candidates to improve the ordering and relevance of the final context.
+- Query rewriting or multi-query retrieval when evaluation shows that user phrasing reduces recall.
+- Metadata filtering to constrain retrieval by document type, supplier, business domain, or other enterprise attributes.
+
+These techniques will be introduced incrementally only when evaluation or scale provides a concrete reason for them.
+
+### Document ingestion boundaries
+
+The current corpus is intentionally local and Markdown-based so that ingestion remains reproducible while retrieval behavior is being developed and evaluated.
+
+Document source discovery is kept separate from the ingestion pipeline. The ingestion service receives textual content and is responsible for chunking, embedding, and persistence, while the current executable adapter loads documents from the local `data/documents` directory.
+
+The current MVP ingestion process is not yet idempotent or version-aware. Re-running ingestion can create duplicate documents and embeddings. A production-oriented evolution would introduce stable document identity, content hashes or versions, and explicit behavior for new, unchanged, and modified documents.
+
+Future source adapters may load content from systems such as S3, SharePoint, upload APIs, or other enterprise repositories. A parsing layer can also be introduced for formats such as PDF, DOCX, and HTML without changing the core ingestion pipeline.
 
 ---
 
