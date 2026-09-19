@@ -1,0 +1,28 @@
+[
+  {
+    "id": "component-shortage-actions",
+    "question": "What should procurement do when a supplier reports a component shortage?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": [
+      "identify affected purchase orders",
+      "identify the unavailable component",
+      "obtain a revised supplier commitment"
+    ]
+  },
+  {
+    "id": "component-shortage-root-cause",
+    "question": "What caused the supplier's component shortage?",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": ["component shortages can affect supplier deliveries"],
+    "missing_evidence": ["the specific root cause of the component shortage"]
+  },
+  {
+    "id": "vacation-approval-policy",
+    "question": "What is the company's employee vacation approval policy?",
+    "answerability": "UNANSWERABLE",
+    "expected_sources": [],
+    "expected_evidence": []
+  }
+]
