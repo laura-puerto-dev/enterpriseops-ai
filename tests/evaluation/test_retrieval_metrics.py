@@ -14,6 +14,7 @@ def test_source_hit_at_first_position() -> None:
     )
 
     assert metrics.source_hit is True
+    assert metrics.source_coverage == 1.0
     assert metrics.first_relevant_rank == 1
 
 
@@ -27,6 +28,7 @@ def test_source_hit_at_later_position() -> None:
     )
 
     assert metrics.source_hit is True
+    assert metrics.source_coverage == 1.0
     assert metrics.first_relevant_rank == 2
 
 
@@ -40,6 +42,7 @@ def test_source_miss() -> None:
     )
 
     assert metrics.source_hit is False
+    assert metrics.source_coverage == 0.0
     assert metrics.first_relevant_rank is None
 
 
@@ -50,7 +53,44 @@ def test_no_expected_sources() -> None:
     )
 
     assert metrics.source_hit is False
+    assert metrics.source_coverage == 0.0
     assert metrics.first_relevant_rank is None
+
+
+def test_source_coverage_with_all_expected_sources_retrieved() -> None:
+    metrics = calculate_retrieval_metrics(
+        expected_sources=[
+            "supply_disruption_playbook.md",
+            "supplier_delivery_policy.md",
+        ],
+        retrieved_sources=[
+            "supply_disruption_playbook.md",
+            "quality_inspection_procedure.md",
+            "supplier_delivery_policy.md",
+        ],
+    )
+
+    assert metrics.source_hit is True
+    assert metrics.source_coverage == 1.0
+    assert metrics.first_relevant_rank == 1
+
+
+def test_source_coverage_with_only_one_expected_source_retrieved() -> None:
+    metrics = calculate_retrieval_metrics(
+        expected_sources=[
+            "supply_disruption_playbook.md",
+            "supplier_delivery_policy.md",
+        ],
+        retrieved_sources=[
+            "supply_disruption_playbook.md",
+            "supply_disruption_playbook.md",
+            "quality_inspection_procedure.md",
+        ],
+    )
+
+    assert metrics.source_hit is True
+    assert metrics.source_coverage == 0.5
+    assert metrics.first_relevant_rank == 1
 
 
 def test_reciprocal_rank_at_first_position() -> None:

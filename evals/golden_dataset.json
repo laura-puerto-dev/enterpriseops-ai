@@ -91,5 +91,68 @@
     "answerability": "UNANSWERABLE",
     "expected_sources": [],
     "expected_evidence": []
+  },
+  {
+    "id": "capacity-delays-investigation",
+    "question": "A supplier reports insufficient production capacity and has multiple delayed purchase orders. What should procurement investigate and when should the supplier be escalated?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": [
+      "supply_disruption_playbook.md",
+      "supplier_delivery_policy.md"
+    ],
+    "expected_evidence": [
+      "identify the active purchase orders that may be affected by the capacity constraint",
+      "assess whether committed delivery dates remain achievable",
+      "determine whether multiple delays indicate a broader supplier-level issue",
+      "escalate when a recurring delivery problem affects multiple active orders or creates material operational risk"
+    ]
+  },
+  {
+    "id": "shortage-quality-hold-investigation",
+    "question": "A purchase order is affected by a supplier component shortage and the incoming material is also on quality hold. What should the investigation establish before the order can proceed?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": [
+      "supply_disruption_playbook.md",
+      "quality_inspection_procedure.md"
+    ],
+    "expected_evidence": [
+      "identify the affected purchase order and unavailable component when known",
+      "identify the relevant quality incident and whether inspection is preventing progress",
+      "keep the material unavailable while the quality hold remains active",
+      "the purchase order may proceed when the material is accepted or the quality restriction is removed"
+    ]
+  },
+  {
+    "id": "unresolved-disruption-response",
+    "question": "How should procurement handle an unresolved supplier disruption while avoiding unsupported conclusions about its impact?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": [
+      "request an updated delivery plan from the supplier",
+      "prioritize orders according to operational impact",
+      "distinguish confirmed supply constraints from unverified potential risks"
+    ]
+  },
+  {
+    "id": "delay-evidence-and-escalation",
+    "question": "Several purchase orders from the same supplier are delayed. What evidence should procurement collect, and what must it avoid assuming before escalation?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supplier_delivery_policy.md"],
+    "expected_evidence": [
+      "verify the current order status",
+      "collect evidence from supplier communications and service incidents",
+      "do not automatically attribute a delayed purchase order to a specific root cause",
+      "determine whether the delays indicate a broader supplier-level issue"
+    ]
+  },
+  {
+    "id": "capacity-constraint-duration",
+    "question": "How long will the supplier's reported capacity constraint last, and which purchase orders could be affected?",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": [
+      "identify the active purchase orders that may be affected"
+    ],
+    "missing_evidence": ["the duration of the supplier's capacity constraint"]
   }
 ]

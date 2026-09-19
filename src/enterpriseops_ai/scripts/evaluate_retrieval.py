@@ -18,6 +18,8 @@ from enterpriseops_ai.repositories.document_chunk import DocumentChunkRepository
 
 
 def main() -> None:
+    top_k = 3
+
     settings = get_settings()
 
     if settings.openai_api_key is None:
@@ -36,7 +38,7 @@ def main() -> None:
         runner = RetrievalEvaluationRunner(
             embedding_service=EmbeddingService(settings.openai_api_key),
             chunk_repository=chunk_repository,
-            top_k=3,
+            top_k=top_k,
         )
 
         results = [runner.evaluate_case(case) for case in cases]
@@ -62,7 +64,8 @@ def main() -> None:
         print(f"  answerability: {result.answerability}")
         print(f"  sources: {result.retrieved_sources}")
         print(f"  distances: {[round(distance, 4) for distance in result.distances]}")
-        print(f"  source_hit@3: {result.metrics.source_hit}")
+        print(f"  source_hit@{top_k}: {result.metrics.source_hit}")
+        print(f"  source_coverage@{top_k}: {result.metrics.source_coverage:.1%}")
         print(f"  first_relevant_rank: {result.metrics.first_relevant_rank}")
         if result.case_id in evidence_coverages:
             print(f"  evidence_coverage: {evidence_coverages[result.case_id]:.1%}")
@@ -80,6 +83,10 @@ def main() -> None:
         result.metrics.source_hit for result in source_evaluable_results
     )
 
+    mean_source_coverage = mean(
+        result.metrics.source_coverage for result in source_evaluable_results
+    )
+
     mean_reciprocal_rank = mean(
         reciprocal_rank(result.metrics.first_relevant_rank)
         for result in source_evaluable_results
@@ -92,7 +99,8 @@ def main() -> None:
     print("\n=== Retrieval Evaluation Summary ===")
     print(f"Cases: {len(results)}")
     print(f"Source-evaluable cases: {len(source_evaluable_results)}")
-    print(f"Source hit@3: {source_hit_rate:.1%}")
+    print(f"Source hit@{top_k}: {source_hit_rate:.1%}")
+    print(f"Mean source coverage@{top_k}: {mean_source_coverage:.1%}")
     print(f"MRR: {mean_reciprocal_rank:.3f}")
     print(f"Mean latency: {mean_latency_ms:.1f} ms")
     print(f"Evidence-evaluable cases: {len(evidence_coverages)}")
