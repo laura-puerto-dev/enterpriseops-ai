@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class EvidenceCriterionResult(BaseModel):
-    evidence: str
+    criterion: str
     supported: bool
     reason: str
 
@@ -52,6 +52,9 @@ class EvidenceJudge:
                         "You are a conservative evidence evaluator. "
                         "Evaluate whether each expected evidence criterion is "
                         "supported by the retrieved context. "
+                        "Return one result for every expected evidence criterion. "
+                        "The criterion field must contain the exact criterion text provided in "
+                        "Expected evidence, copied verbatim and in the same order. "
                         "Use only the retrieved context. "
                         "Do not use external knowledge. "
                         "Do not infer unsupported facts. "
@@ -77,11 +80,13 @@ class EvidenceJudge:
         if result is None:
             raise RuntimeError("Evidence judge did not return a structured result.")
 
-        returned_evidence = [criterion.evidence for criterion in result.criteria]
+        returned_criteria = [criterion.criterion for criterion in result.criteria]
 
-        if returned_evidence != expected_evidence:
+        if returned_criteria != expected_evidence:
             raise RuntimeError(
-                "Evidence judge returned criteria that do not match the expected evidence."
+                "Evidence judge returned criteria that do not match the expected evidence. "
+                f"Expected: {expected_evidence!r}. "
+                f"Returned: {returned_criteria!r}."
             )
 
         return result

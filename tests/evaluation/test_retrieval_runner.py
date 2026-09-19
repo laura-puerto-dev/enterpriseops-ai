@@ -62,6 +62,10 @@ def test_evaluate_case_returns_retrieval_result() -> None:
         "supply_disruption_playbook.md",
         "supplier_delivery_policy.md",
     ]
+    assert result.retrieved_context == [
+        "Relevant evidence",
+        "Other evidence",
+    ]
     assert result.distances == [0.25, 0.45]
     assert result.metrics.source_hit is True
     assert result.metrics.first_relevant_rank == 1

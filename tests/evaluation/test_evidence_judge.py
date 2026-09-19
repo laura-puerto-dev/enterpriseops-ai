@@ -14,17 +14,17 @@ def test_calculate_evidence_coverage_for_partial_support() -> None:
     result = EvidenceJudgeResult(
         criteria=[
             EvidenceCriterionResult(
-                evidence="Identify affected purchase orders",
+                criterion="Identify affected purchase orders",
                 supported=True,
                 reason="The context explicitly identifies affected purchase orders.",
             ),
             EvidenceCriterionResult(
-                evidence="Identify unavailable component",
+                criterion="Identify unavailable component",
                 supported=True,
                 reason="The context identifies the unavailable component.",
             ),
             EvidenceCriterionResult(
-                evidence="Obtain revised supplier commitment",
+                criterion="Obtain revised supplier commitment",
                 supported=False,
                 reason="No revised supplier commitment is present in the context.",
             ),
@@ -38,12 +38,12 @@ def test_calculate_evidence_coverage_for_full_support() -> None:
     result = EvidenceJudgeResult(
         criteria=[
             EvidenceCriterionResult(
-                evidence="First criterion",
+                criterion="First criterion",
                 supported=True,
                 reason="Supported.",
             ),
             EvidenceCriterionResult(
-                evidence="Second criterion",
+                criterion="Second criterion",
                 supported=True,
                 reason="Supported.",
             ),
@@ -66,12 +66,12 @@ def test_evidence_judge_returns_structured_result(
     expected_result = EvidenceJudgeResult(
         criteria=[
             EvidenceCriterionResult(
-                evidence="Identify affected purchase orders",
+                criterion="Identify affected purchase orders",
                 supported=True,
                 reason="The context explicitly identifies affected purchase orders.",
             ),
             EvidenceCriterionResult(
-                evidence="Obtain revised supplier commitment",
+                criterion="Obtain revised supplier commitment",
                 supported=False,
                 reason="The context does not provide a revised supplier commitment.",
             ),
@@ -132,12 +132,12 @@ def test_evidence_judge_fails_when_criteria_do_not_match(
     incomplete_result = EvidenceJudgeResult(
         criteria=[
             EvidenceCriterionResult(
-                evidence="Identify affected purchase orders",
+                criterion="Identify affected purchase orders",
                 supported=True,
                 reason="The context supports it.",
             ),
             EvidenceCriterionResult(
-                evidence="Identify the unavailable component",
+                criterion="Identify the unavailable component",
                 supported=True,
                 reason="The context supports it.",
             ),

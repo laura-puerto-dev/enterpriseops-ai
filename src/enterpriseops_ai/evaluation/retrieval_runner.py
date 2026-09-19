@@ -16,6 +16,7 @@ class RetrievalEvaluationResult:
     question: str
     answerability: str
     retrieved_sources: list[str]
+    retrieved_context: list[str]
     distances: list[float]
     latency_ms: float
     metrics: RetrievalMetrics
@@ -60,6 +61,7 @@ class RetrievalEvaluationRunner:
             question=case.question,
             answerability=case.answerability.value,
             retrieved_sources=retrieved_sources,
+            retrieved_context=[chunk.content for chunk in retrieved_chunks],
             distances=[chunk.distance for chunk in retrieved_chunks],
             latency_ms=latency_ms,
             metrics=metrics,

@@ -3,6 +3,10 @@ from statistics import mean
 
 from enterpriseops_ai.core.config import get_settings
 from enterpriseops_ai.db.session import SessionFactory
+from enterpriseops_ai.evaluation.evidence_judge import (
+    EvidenceJudge,
+    calculate_evidence_coverage,
+)
 from enterpriseops_ai.evaluation.golden_dataset import (
     Answerability,
     load_golden_dataset,
@@ -37,6 +41,22 @@ def main() -> None:
 
         results = [runner.evaluate_case(case) for case in cases]
 
+        judge = EvidenceJudge(settings.openai_api_key)
+
+        evidence_coverages: dict[str, float] = {}
+
+        for case, result in zip(cases, results, strict=True):
+            if not case.expected_evidence:
+                continue
+
+            judge_result = judge.evaluate(
+                question=case.question,
+                expected_evidence=case.expected_evidence,
+                retrieved_context=result.retrieved_context,
+            )
+
+            evidence_coverages[case.id] = calculate_evidence_coverage(judge_result)
+
     for result in results:
         print(f"\n[{result.case_id}]")
         print(f"  answerability: {result.answerability}")
@@ -44,6 +64,10 @@ def main() -> None:
         print(f"  distances: {[round(distance, 4) for distance in result.distances]}")
         print(f"  source_hit@3: {result.metrics.source_hit}")
         print(f"  first_relevant_rank: {result.metrics.first_relevant_rank}")
+        if result.case_id in evidence_coverages:
+            print(f"  evidence_coverage: {evidence_coverages[result.case_id]:.1%}")
+        else:
+            print("  evidence_coverage: N/A")
         print(f"  latency_ms: {result.latency_ms:.1f}")
 
     source_evaluable_results = [
@@ -63,12 +87,16 @@ def main() -> None:
 
     mean_latency_ms = mean(result.latency_ms for result in results)
 
+    mean_evidence_coverage = mean(evidence_coverages.values())
+
     print("\n=== Retrieval Evaluation Summary ===")
     print(f"Cases: {len(results)}")
     print(f"Source-evaluable cases: {len(source_evaluable_results)}")
     print(f"Source hit@3: {source_hit_rate:.1%}")
     print(f"MRR: {mean_reciprocal_rank:.3f}")
     print(f"Mean latency: {mean_latency_ms:.1f} ms")
+    print(f"Evidence-evaluable cases: {len(evidence_coverages)}")
+    print(f"Mean evidence coverage: {mean_evidence_coverage:.1%}")
 
 
 if __name__ == "__main__":
