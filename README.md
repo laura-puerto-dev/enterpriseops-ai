@@ -38,7 +38,7 @@ Currently implemented:
 - exact cosine-similarity retrieval with source metadata
 - document ingestion and semantic-search scripts
 - golden dataset covering answerable, partially answerable, and unanswerable retrieval scenarios
-- deterministic retrieval metrics including source hit rate and mean reciprocal rank (MRR)
+- deterministic retrieval metrics including source hit rate, source coverage, and mean reciprocal rank (MRR)
 - semantic evidence-coverage evaluation using a constrained LLM judge with structured output
 - deterministic validation of evaluator invariants
 - executable retrieval-evaluation baseline
@@ -46,7 +46,9 @@ Currently implemented:
 - pytest, Ruff, and strict mypy quality tooling
 - GitHub Actions CI with PostgreSQL + pgvector, schema migrations, quality checks, and integration tests
 
-The retrieval baseline has been evaluated end-to-end using real embeddings and semantic retrieval. The current 10-case evaluation suite achieves 100% source hit@3 and 100% semantic evidence coverage across the 8 evaluable cases, with an MRR of 0.917.
+The retrieval baseline has been evaluated end-to-end using real embeddings and semantic retrieval. The evaluation suite now contains 15 cases, including multi-source and multi-evidence challenge scenarios. Across 13 source-evaluable cases, both `top_k=3` and `top_k=5` achieved 100% source hit, 100% mean source coverage, and an MRR of 0.949.
+
+A controlled five-run comparison measured mean semantic evidence coverage of 94.6% for `top_k=3` and 96.1% for `top_k=5`. The LLM-based evidence judge also showed material run-to-run variance, so the small difference was not treated as sufficient evidence to increase the default retrieval context. The MVP therefore retains `top_k=3`, while evaluator calibration against human-labelled examples remains a production consideration.
 
 These measurements establish a controlled baseline for subsequent retrieval experiments. They are intended for comparative evaluation as the retrieval strategy evolves rather than as a claim of production-level accuracy.
 
