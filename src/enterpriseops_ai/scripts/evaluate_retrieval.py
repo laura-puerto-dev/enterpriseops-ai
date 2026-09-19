@@ -7,6 +7,7 @@ from enterpriseops_ai.evaluation.golden_dataset import (
     Answerability,
     load_golden_dataset,
 )
+from enterpriseops_ai.evaluation.retrieval_metrics import reciprocal_rank
 from enterpriseops_ai.evaluation.retrieval_runner import RetrievalEvaluationRunner
 from enterpriseops_ai.rag.embeddings import EmbeddingService
 from enterpriseops_ai.repositories.document_chunk import DocumentChunkRepository
@@ -21,9 +22,16 @@ def main() -> None:
     cases = load_golden_dataset(Path("evals/golden_dataset.json"))
 
     with SessionFactory() as session:
+        chunk_repository = DocumentChunkRepository(session)
+
+        if chunk_repository.count() == 0:
+            raise RuntimeError(
+                "Cannot run retrieval evaluation: document corpus is empty."
+            )
+
         runner = RetrievalEvaluationRunner(
             embedding_service=EmbeddingService(settings.openai_api_key),
-            chunk_repository=DocumentChunkRepository(session),
+            chunk_repository=chunk_repository,
             top_k=3,
         )
 
@@ -48,12 +56,18 @@ def main() -> None:
         result.metrics.source_hit for result in source_evaluable_results
     )
 
+    mean_reciprocal_rank = mean(
+        reciprocal_rank(result.metrics.first_relevant_rank)
+        for result in source_evaluable_results
+    )
+
     mean_latency_ms = mean(result.latency_ms for result in results)
 
     print("\n=== Retrieval Evaluation Summary ===")
     print(f"Cases: {len(results)}")
     print(f"Source-evaluable cases: {len(source_evaluable_results)}")
     print(f"Source hit@3: {source_hit_rate:.1%}")
+    print(f"MRR: {mean_reciprocal_rank:.3f}")
     print(f"Mean latency: {mean_latency_ms:.1f} ms")
 
 

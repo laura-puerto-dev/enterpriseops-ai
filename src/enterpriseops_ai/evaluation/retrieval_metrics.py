@@ -30,3 +30,10 @@ def calculate_retrieval_metrics(
         source_hit=False,
         first_relevant_rank=None,
     )
+
+
+def reciprocal_rank(first_relevant_rank: int | None) -> float:
+    if first_relevant_rank is None:
+        return 0.0
+
+    return 1.0 / first_relevant_rank

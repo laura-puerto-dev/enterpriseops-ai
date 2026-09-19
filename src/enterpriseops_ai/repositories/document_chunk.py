@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from enterpriseops_ai.models import Document, DocumentChunk
@@ -20,6 +20,10 @@ class RetrievedChunk:
 class DocumentChunkRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def count(self) -> int:
+        statement = select(func.count()).select_from(DocumentChunk)
+        return self.session.scalar(statement) or 0
 
     def search_by_embedding(
         self,

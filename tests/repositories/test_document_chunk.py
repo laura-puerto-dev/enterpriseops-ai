@@ -46,3 +46,35 @@ def test_search_by_embedding_orders_chunks_by_cosine_distance(
 
     assert results[1].content == "Unrelated quality information"
     assert results[1].distance > results[0].distance
+
+
+def test_count_returns_zero_when_corpus_is_empty(db_session: Session) -> None:
+    repository = DocumentChunkRepository(db_session)
+
+    assert repository.count() == 0
+
+
+def test_count_returns_number_of_chunks(db_session: Session) -> None:
+    document = Document(
+        title="Supplier Operations Policy",
+        source="supplier-operations-policy.md",
+        chunks=[
+            DocumentChunk(
+                chunk_index=0,
+                content="First chunk",
+                embedding=_vector(1.0, 0.0),
+            ),
+            DocumentChunk(
+                chunk_index=1,
+                content="Second chunk",
+                embedding=_vector(0.0, 1.0),
+            ),
+        ],
+    )
+
+    db_session.add(document)
+    db_session.flush()
+
+    repository = DocumentChunkRepository(db_session)
+
+    assert repository.count() == 2
