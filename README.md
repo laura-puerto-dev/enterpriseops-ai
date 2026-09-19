@@ -21,7 +21,7 @@ The system is designed to progressively combine:
 
 ## Current Status
 
-The deterministic enterprise-data foundation and the first semantic retrieval baseline are implemented.
+The deterministic enterprise-data foundation, semantic retrieval baseline, and retrieval-evaluation foundation are implemented.
 
 Currently implemented:
 
@@ -37,10 +37,20 @@ Currently implemented:
 - document and chunk persistence with pgvector
 - exact cosine-similarity retrieval with source metadata
 - document ingestion and semantic-search scripts
+- golden dataset covering answerable, partially answerable, and unanswerable retrieval scenarios
+- deterministic retrieval metrics including source hit rate and mean reciprocal rank (MRR)
+- semantic evidence-coverage evaluation using a constrained LLM judge with structured output
+- deterministic validation of evaluator invariants
+- executable retrieval-evaluation baseline
 - separate PostgreSQL integration-test database
 - pytest, Ruff, and strict mypy quality tooling
+- GitHub Actions CI with PostgreSQL + pgvector, schema migrations, quality checks, and integration tests
 
-The current RAG baseline has been exercised end-to-end with real embeddings and semantic retrieval. Evaluation, controlled orchestration, LLM synthesis, observability, and reliability behavior are being added incrementally.
+The retrieval baseline has been evaluated end-to-end using real embeddings and semantic retrieval. The current 10-case evaluation suite achieves 100% source hit@3 and 100% semantic evidence coverage across the 8 evaluable cases, with an MRR of 0.917.
+
+These measurements establish a controlled baseline for subsequent retrieval experiments. They are intended for comparative evaluation as the retrieval strategy evolves rather than as a claim of production-level accuracy.
+
+Controlled orchestration, LLM synthesis, observability, and reliability behavior are being added incrementally.
 
 ## Architecture
 
@@ -120,6 +130,14 @@ Run a semantic retrieval query:
 uv run python -m enterpriseops_ai.scripts.search_documents "What should procurement do when a supplier reports a component shortage?"
 ```
 
+Run the retrieval evaluation baseline:
+
+```bash
+uv run python -m enterpriseops_ai.scripts.evaluate_retrieval
+```
+
+The evaluation command requires `OPENAI_API_KEY` because it uses real query embeddings and an LLM-based semantic evidence judge.
+
 Run the API:
 
 ```bash
@@ -164,6 +182,8 @@ uv run ruff check .
 uv run mypy src tests
 uv run pytest
 ```
+
+The same quality pipeline runs automatically in GitHub Actions against a clean PostgreSQL + pgvector environment. CI creates the integration-test database, applies the Alembic migration history from scratch, and then runs formatting, linting, type checking, and tests.
 
 ## Project Roadmap
 

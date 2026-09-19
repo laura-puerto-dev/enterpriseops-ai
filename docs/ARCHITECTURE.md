@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | In progress |
-| **Last updated** | 2026-09-18 |
+| **Last updated** | 2026-09-19 |
 | **Scope** | MVP |
 
 ## Overview
@@ -60,11 +60,12 @@ Additional services, infrastructure, abstractions, or agent autonomy should only
 
 ## Current Architecture
 
-The current implementation contains three foundations that are not yet connected through application routes:
+The current implementation contains four foundations that are not yet connected through application routes:
 
 1. the FastAPI application foundation,
 2. deterministic enterprise data access,
-3. document ingestion and semantic retrieval over enterprise knowledge.
+3. document ingestion and semantic retrieval over enterprise knowledge,
+4. retrieval evaluation over a deterministic golden dataset.
 
 ```text
 ┌──────────────────────────────┐
@@ -181,7 +182,11 @@ The semantic retrieval repository is tested against real PostgreSQL and pgvector
 
 End-to-end diagnostic retrieval has also been exercised using real enterprise documents and real OpenAI embeddings.
 
-The current quality pipeline includes Ruff formatting, Ruff linting, strict mypy, and pytest.
+Retrieval evaluation uses a deterministic golden dataset containing answerable, partially answerable, and unanswerable cases. Deterministic metrics measure source retrieval and ranking, while semantic evidence coverage is evaluated separately using a constrained LLM judge with structured output.
+
+The evaluator validates deterministic invariants around the LLM judge rather than treating schema compliance as proof of semantic correctness. Returned criteria must exactly match the requested evidence criteria before evidence coverage is calculated.
+
+The current quality pipeline includes Ruff formatting, Ruff linting, strict mypy, and pytest. The same pipeline runs in GitHub Actions against a clean PostgreSQL + pgvector service, where the integration-test database is created and the complete Alembic migration history is applied before the test suite executes.
 
 ---
 
@@ -341,15 +346,40 @@ The system will not introduce unrestricted agent autonomy merely to make the arc
 
 ---
 
-## Planned Evaluation Layer
+## Evaluation Layer
 
-The RAG and AI pipeline will be evaluated against a small deterministic golden dataset.
+Retrieval evaluation is implemented as an independent layer so that retrieval failures can be measured separately from future generation failures.
 
-Evaluation will cover both retrieval and generation behavior.
+The current golden dataset contains 10 representative cases covering answerable, partially answerable, and unanswerable questions. Ground truth is expressed through expected sources and semantic evidence criteria rather than chunk identifiers, keeping the evaluation dataset independent of a specific chunking configuration.
 
-Experiments will compare concrete retrieval configurations rather than relying only on subjective inspection.
+The current retrieval baseline measures:
 
-The selected configuration should therefore be supported by measured evidence.
+- source hit@3
+- first relevant source rank
+- mean reciprocal rank (MRR)
+- semantic evidence coverage
+- retrieval latency
+
+Source-based metrics are deterministic. Semantic evidence coverage uses a constrained LLM judge because exact lexical matching would be too brittle for determining whether retrieved context supports a semantic evidence criterion.
+
+The LLM judge returns structured results, but schema compliance is not treated as sufficient validation. Deterministic invariants require the judge to return exactly the requested criteria, in the expected order, before evidence coverage is calculated. Evaluation failures therefore fail explicitly rather than being silently converted into quality scores.
+
+The current baseline produced:
+
+- 100% source hit@3 across 8 source-evaluable cases
+- MRR of 0.917
+- 100% semantic evidence coverage across 8 evidence-evaluable cases
+- 306.4 ms mean retrieval latency in the recorded baseline run
+
+Retrieval latency covers query embedding and vector retrieval. The offline LLM judge is intentionally excluded from that measurement because it is evaluation infrastructure rather than part of the runtime retrieval path.
+
+These measurements establish a controlled baseline for comparison rather than a claim of production-level retrieval quality. Individual retrieval results remain inspectable so that changes in metrics can be attributed to retrieval behavior, evaluator behavior, or evaluation-dataset assumptions.
+
+Partially answerable cases deliberately preserve the distinction between retrieval evidence coverage and overall answerability. Retrieving all available evidence does not imply that sufficient evidence exists to fully answer the user's question.
+
+Unanswerable cases with no expected evidence are excluded from evidence-coverage aggregation. Vector retrieval may still return nearest-neighbor chunks for these questions, reinforcing the distinction between retrieving candidates and establishing sufficient evidence.
+
+The next evaluation stage will compare concrete retrieval configurations experimentally. Retrieval changes will be selected from measured results rather than assumed to improve quality. Generation-specific evaluation will be introduced when evidence-grounded LLM synthesis is implemented.
 
 ---
 
