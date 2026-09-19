@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: enterpriseops
+          POSTGRES_PASSWORD: enterpriseops
+          POSTGRES_DB: enterpriseops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U enterpriseops -d enterpriseops"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_USER: enterpriseops
+      POSTGRES_PASSWORD: enterpriseops
+      POSTGRES_DB: enterpriseops
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Create test database
+        env:
+          PGPASSWORD: enterpriseops
+        run: |
+          psql \
+            --host=localhost \
+            --username=enterpriseops \
+            --dbname=enterpriseops \
+            --command="CREATE DATABASE enterpriseops_test;"
+
+      - name: Run migrations on test database
+        env:
+          POSTGRES_DB: enterpriseops_test
+        run: uv run alembic upgrade head
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Run Ruff
+        run: uv run ruff check .
+
+      - name: Run mypy
+        run: uv run mypy src tests
+
+      - name: Run tests
+        run: uv run pytest
