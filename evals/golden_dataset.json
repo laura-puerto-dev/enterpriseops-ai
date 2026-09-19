@@ -24,5 +24,72 @@
     "answerability": "UNANSWERABLE",
     "expected_sources": [],
     "expected_evidence": []
+  },
+  {
+    "id": "repeated-delivery-delays",
+    "question": "What should procurement do when a supplier repeatedly misses expected delivery dates?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supplier_delivery_policy.md"],
+    "expected_evidence": [
+      "review missed expected delivery dates",
+      "collect supporting evidence",
+      "escalate recurring supplier delays"
+    ]
+  },
+  {
+    "id": "single-delay-root-cause",
+    "question": "Does a missed expected delivery date prove that the supplier has a capacity problem?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supplier_delivery_policy.md"],
+    "expected_evidence": [
+      "a missed delivery date requires investigation",
+      "a delay does not automatically establish its root cause"
+    ]
+  },
+  {
+    "id": "quality-hold-actions",
+    "question": "What should happen when incoming supplier goods are placed on quality hold?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["quality_inspection_procedure.md"],
+    "expected_evidence": [
+      "keep the goods on hold until inspection is complete",
+      "record the quality incident or blocking issue",
+      "record the inspection outcome or corrective action"
+    ]
+  },
+  {
+    "id": "unresolved-quality-inspection",
+    "question": "What should happen if the outcome of a supplier quality inspection is still unresolved?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["quality_inspection_procedure.md"],
+    "expected_evidence": [
+      "the quality issue remains pending until the inspection outcome is known"
+    ]
+  },
+  {
+    "id": "supplier-capacity-affected-orders",
+    "question": "What information should be reviewed when a supplier reports a capacity constraint?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": [
+      "identify affected purchase orders",
+      "review committed delivery dates"
+    ]
+  },
+  {
+    "id": "supplier-capacity-proof",
+    "question": "Does a supplier-level capacity incident prove that every delayed purchase order was caused by that incident?",
+    "answerability": "ANSWERABLE",
+    "expected_sources": ["supply_disruption_playbook.md"],
+    "expected_evidence": [
+      "a supplier-level incident is not proof that it caused every individual purchase order delay"
+    ]
+  },
+  {
+    "id": "password-reset-policy",
+    "question": "How often are employees required to reset their passwords?",
+    "answerability": "UNANSWERABLE",
+    "expected_sources": [],
+    "expected_evidence": []
   }
 ]
