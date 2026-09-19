@@ -30,7 +30,7 @@ def main() -> None:
 
             document = ingestion_service.ingest(
                 title=path.stem.replace("_", " ").title(),
-                source=str(path),
+                source=path.name,
                 content=content,
             )
 
