@@ -3,6 +3,7 @@ import sys
 from enterpriseops_ai.core.config import get_settings
 from enterpriseops_ai.db.session import SessionFactory
 from enterpriseops_ai.rag.embeddings import EmbeddingService
+from enterpriseops_ai.rag.retrieval import RetrievalService
 from enterpriseops_ai.repositories.document_chunk import DocumentChunkRepository
 
 
@@ -22,13 +23,15 @@ def main() -> None:
         raise RuntimeError("OPENAI_API_KEY is required for semantic search")
 
     embedding_service = EmbeddingService(api_key=settings.openai_api_key)
-    query_embedding = embedding_service.embed([question])[0]
 
     with SessionFactory() as session:
         repository = DocumentChunkRepository(session)
-
-        results = repository.search_by_embedding(
-            query_embedding=query_embedding,
+        retrieval_service = RetrievalService(
+            embedding_service=embedding_service,
+            repository=repository,
+        )
+        results = retrieval_service.search(
+            question=question,
             top_k=3,
         )
 
