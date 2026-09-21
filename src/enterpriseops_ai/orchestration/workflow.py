@@ -1,8 +1,10 @@
 from typing import Any, cast
+from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from enterpriseops_ai.observability.context import agent_run_id_var
 from enterpriseops_ai.orchestration.nodes import InvestigationNodes
 from enterpriseops_ai.orchestration.state import InvestigationState
 
@@ -54,4 +56,9 @@ class InvestigationWorkflow:
         return builder.compile()
 
     def invoke(self, state: InvestigationState) -> InvestigationState:
-        return cast(InvestigationState, self._graph.invoke(state))
+        agent_run_id = str(uuid4())
+        token = agent_run_id_var.set(agent_run_id)
+        try:
+            return cast(InvestigationState, self._graph.invoke(state))
+        finally:
+            agent_run_id_var.reset(token)

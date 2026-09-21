@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 
 from enterpriseops_ai.api.routes import router as ai_router
+from enterpriseops_ai.observability.middleware import request_context_middleware
 
 app = FastAPI(
     title="EnterpriseOps AI",
     version="0.1.0",
 )
+
+app.middleware("http")(request_context_middleware)
 
 app.include_router(ai_router)
 
