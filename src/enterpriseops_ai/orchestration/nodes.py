@@ -3,6 +3,7 @@ from enterpriseops_ai.orchestration.state import (
     InvestigationState,
     InvestigationStateUpdate,
 )
+from enterpriseops_ai.tools.documents import DocumentTools
 from enterpriseops_ai.tools.enterprise import EnterpriseTools
 
 
@@ -11,9 +12,11 @@ class InvestigationNodes:
         self,
         understanding_service: QuestionUnderstandingService,
         enterprise_tools: EnterpriseTools,
+        document_tools: DocumentTools,
     ) -> None:
         self.understanding_service = understanding_service
         self.enterprise_tools = enterprise_tools
+        self.document_tools = document_tools
 
     def understand(
         self,
@@ -47,4 +50,60 @@ class InvestigationNodes:
 
         return {
             "supplier": supplier,
+        }
+
+    def search_purchase_orders(
+        self,
+        state: InvestigationState,
+    ) -> InvestigationStateUpdate:
+        supplier = state["supplier"]
+
+        if supplier is None:
+            return {
+                "purchase_orders": [],
+                "errors": [
+                    "Purchase orders could not be searched without a resolved supplier."
+                ],
+            }
+
+        purchase_orders = self.enterprise_tools.search_purchase_orders(
+            supplier.supplier_id
+        )
+
+        return {
+            "purchase_orders": purchase_orders,
+        }
+
+    def search_service_tickets(
+        self,
+        state: InvestigationState,
+    ) -> InvestigationStateUpdate:
+        supplier = state["supplier"]
+
+        if supplier is None:
+            return {
+                "service_tickets": [],
+                "errors": [
+                    "Service tickets could not be searched without a resolved supplier."
+                ],
+            }
+
+        service_tickets = self.enterprise_tools.search_service_tickets(
+            supplier.supplier_id
+        )
+
+        return {
+            "service_tickets": service_tickets,
+        }
+
+    def search_documents(
+        self,
+        state: InvestigationState,
+    ) -> InvestigationStateUpdate:
+        documents = self.document_tools.search_documents(
+            question=state["question"],
+        )
+
+        return {
+            "documents": documents,
         }
