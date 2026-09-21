@@ -2,6 +2,10 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import Mock
 
+from enterpriseops_ai.ai.synthesis import (
+    InvestigationAnswer,
+    SynthesisService,
+)
 from enterpriseops_ai.ai.understanding import (
     InvestigationContext,
     QuestionUnderstandingService,
@@ -70,10 +74,23 @@ def test_workflow_understands_and_resolves_supplier() -> None:
     )
     document_tools.search_documents.return_value = [document]
 
+    synthesis_service = Mock(spec=SynthesisService)
+
+    answer = InvestigationAnswer(
+        summary="Investigation completed.",
+        findings=[],
+        evidence=[],
+        sources=[],
+        recommended_actions=[],
+        limitations=[],
+    )
+    synthesis_service.synthesize.return_value = answer
+
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
     workflow = InvestigationWorkflow(nodes=nodes)
 
@@ -96,7 +113,7 @@ def test_workflow_understands_and_resolves_supplier() -> None:
     assert result["purchase_orders"] == [purchase_order]
     assert result["service_tickets"] == [service_ticket]
     assert result["documents"] == [document]
-    assert result["answer"] is None
+    assert result["answer"] == answer
     assert result["errors"] == []
 
     enterprise_tools.get_supplier.assert_called_once_with("ACME")
@@ -131,10 +148,23 @@ def test_workflow_skips_structured_tools_when_supplier_is_not_resolved() -> None
     )
     document_tools.search_documents.return_value = [document]
 
+    synthesis_service = Mock(spec=SynthesisService)
+
+    answer = InvestigationAnswer(
+        summary="Investigation completed.",
+        findings=[],
+        evidence=[],
+        sources=[],
+        recommended_actions=[],
+        limitations=[],
+    )
+    synthesis_service.synthesize.return_value = answer
+
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
     workflow = InvestigationWorkflow(nodes=nodes)
 
@@ -160,10 +190,22 @@ def test_workflow_skips_structured_tools_when_supplier_is_not_resolved() -> None
         "Previous warning.",
         "No supplier could be identified from the question.",
     ]
+    assert result["answer"] == answer
 
     enterprise_tools.get_supplier.assert_not_called()
     enterprise_tools.search_purchase_orders.assert_not_called()
     enterprise_tools.search_service_tickets.assert_not_called()
     document_tools.search_documents.assert_called_once_with(
         question="Why are these purchase orders late?",
+    )
+    synthesis_service.synthesize.assert_called_once_with(
+        question="Why are these purchase orders late?",
+        supplier=None,
+        purchase_orders=[],
+        service_tickets=[],
+        documents=[document],
+        errors=[
+            "Previous warning.",
+            "No supplier could be identified from the question.",
+        ],
     )

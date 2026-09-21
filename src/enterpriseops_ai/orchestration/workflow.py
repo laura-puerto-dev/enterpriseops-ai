@@ -28,6 +28,10 @@ class InvestigationWorkflow:
             "search_documents",
             self._nodes.search_documents,
         )
+        builder.add_node(
+            "synthesize",
+            self._nodes.synthesize,
+        )
 
         builder.add_edge(START, "understand")
         builder.add_edge("understand", "find_supplier")
@@ -41,7 +45,8 @@ class InvestigationWorkflow:
         )
         builder.add_edge("search_purchase_orders", "search_service_tickets")
         builder.add_edge("search_service_tickets", "search_documents")
-        builder.add_edge("search_documents", END)
+        builder.add_edge("search_documents", "synthesize")
+        builder.add_edge("synthesize", END)
 
         return builder.compile()
 

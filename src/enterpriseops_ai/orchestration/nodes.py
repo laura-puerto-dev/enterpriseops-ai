@@ -1,3 +1,4 @@
+from enterpriseops_ai.ai.synthesis import SynthesisService
 from enterpriseops_ai.ai.understanding import QuestionUnderstandingService
 from enterpriseops_ai.orchestration.state import (
     InvestigationState,
@@ -13,10 +14,12 @@ class InvestigationNodes:
         understanding_service: QuestionUnderstandingService,
         enterprise_tools: EnterpriseTools,
         document_tools: DocumentTools,
+        synthesis_service: SynthesisService,
     ) -> None:
         self.understanding_service = understanding_service
         self.enterprise_tools = enterprise_tools
         self.document_tools = document_tools
+        self.synthesis_service = synthesis_service
 
     def understand(
         self,
@@ -116,3 +119,20 @@ class InvestigationNodes:
             return "search_documents"
 
         return "search_purchase_orders"
+
+    def synthesize(
+        self,
+        state: InvestigationState,
+    ) -> InvestigationStateUpdate:
+        answer = self.synthesis_service.synthesize(
+            question=state["question"],
+            supplier=state["supplier"],
+            purchase_orders=state["purchase_orders"],
+            service_tickets=state["service_tickets"],
+            documents=state["documents"],
+            errors=state["errors"],
+        )
+
+        return {
+            "answer": answer,
+        }

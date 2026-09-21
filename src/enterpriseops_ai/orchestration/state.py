@@ -1,6 +1,7 @@
 from operator import add
 from typing import Annotated, TypedDict
 
+from enterpriseops_ai.ai.synthesis import InvestigationAnswer
 from enterpriseops_ai.tools.documents import DocumentEvidence
 from enterpriseops_ai.tools.enterprise import (
     PurchaseOrderResult,
@@ -16,7 +17,7 @@ class InvestigationState(TypedDict):
     purchase_orders: list[PurchaseOrderResult]
     service_tickets: list[ServiceTicketResult]
     documents: list[DocumentEvidence]
-    answer: str | None
+    answer: InvestigationAnswer | None
     errors: Annotated[list[str], add]
 
 
@@ -27,5 +28,5 @@ class InvestigationStateUpdate(TypedDict, total=False):
     purchase_orders: list[PurchaseOrderResult]
     service_tickets: list[ServiceTicketResult]
     documents: list[DocumentEvidence]
-    answer: str | None
+    answer: InvestigationAnswer | None
     errors: list[str]

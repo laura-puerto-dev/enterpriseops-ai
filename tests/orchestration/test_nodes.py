@@ -2,6 +2,10 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import Mock
 
+from enterpriseops_ai.ai.synthesis import (
+    InvestigationAnswer,
+    SynthesisService,
+)
 from enterpriseops_ai.ai.understanding import (
     InvestigationContext,
     QuestionUnderstandingService,
@@ -39,11 +43,13 @@ def test_understand_updates_supplier_name() -> None:
     )
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state: InvestigationState = create_state()
@@ -60,6 +66,7 @@ def test_find_supplier_resolves_supplier() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     supplier = SupplierResult(
         supplier_id=1,
@@ -75,6 +82,7 @@ def test_find_supplier_resolves_supplier() -> None:
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state(supplier_name="ACME")
@@ -89,12 +97,14 @@ def test_find_supplier_records_error_when_supplier_is_not_found() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
     enterprise_tools.get_supplier.return_value = None
 
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state(supplier_name="UNKNOWN")
@@ -112,11 +122,13 @@ def test_find_supplier_does_not_query_database_without_supplier_name() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state(supplier_name=None)
@@ -134,6 +146,7 @@ def test_search_purchase_orders_returns_delayed_orders() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     supplier = SupplierResult(
         supplier_id=1,
@@ -158,6 +171,7 @@ def test_search_purchase_orders_returns_delayed_orders() -> None:
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state()
@@ -175,11 +189,13 @@ def test_search_purchase_orders_does_not_query_without_supplier() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state()
@@ -199,6 +215,7 @@ def test_search_service_tickets_returns_supplier_tickets() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     supplier = SupplierResult(
         supplier_id=1,
@@ -223,6 +240,7 @@ def test_search_service_tickets_returns_supplier_tickets() -> None:
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state()
@@ -240,11 +258,13 @@ def test_search_service_tickets_does_not_query_without_supplier() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     nodes = InvestigationNodes(
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state()
@@ -264,6 +284,7 @@ def test_search_documents_returns_retrieved_evidence() -> None:
     understanding_service = Mock(spec=QuestionUnderstandingService)
     enterprise_tools = Mock(spec=EnterpriseTools)
     document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
 
     document = DocumentEvidence(
         chunk_id=1,
@@ -280,6 +301,7 @@ def test_search_documents_returns_retrieved_evidence() -> None:
         understanding_service=understanding_service,
         enterprise_tools=enterprise_tools,
         document_tools=document_tools,
+        synthesis_service=synthesis_service,
     )
 
     state = create_state()
@@ -289,4 +311,42 @@ def test_search_documents_returns_retrieved_evidence() -> None:
     assert update == {"documents": [document]}
     document_tools.search_documents.assert_called_once_with(
         question="Why are ACME's orders late?",
+    )
+
+
+def test_synthesize_returns_structured_investigation_answer() -> None:
+    understanding_service = Mock(spec=QuestionUnderstandingService)
+    enterprise_tools = Mock(spec=EnterpriseTools)
+    document_tools = Mock(spec=DocumentTools)
+    synthesis_service = Mock(spec=SynthesisService)
+
+    expected_answer = InvestigationAnswer(
+        summary="The evidence indicates supplier capacity constraints.",
+        findings=["ACME reported reduced production capacity."],
+        evidence=["An open service ticket reports a supplier capacity issue."],
+        sources=["service_ticket:20"],
+        recommended_actions=["Confirm ACME's current production capacity."],
+        limitations=[],
+    )
+    synthesis_service.synthesize.return_value = expected_answer
+
+    nodes = InvestigationNodes(
+        understanding_service=understanding_service,
+        enterprise_tools=enterprise_tools,
+        document_tools=document_tools,
+        synthesis_service=synthesis_service,
+    )
+
+    state = create_state()
+
+    update = nodes.synthesize(state)
+
+    assert update == {"answer": expected_answer}
+    synthesis_service.synthesize.assert_called_once_with(
+        question=state["question"],
+        supplier=state["supplier"],
+        purchase_orders=state["purchase_orders"],
+        service_tickets=state["service_tickets"],
+        documents=state["documents"],
+        errors=state["errors"],
     )
