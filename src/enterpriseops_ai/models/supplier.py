@@ -8,6 +8,7 @@ from enterpriseops_ai.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from enterpriseops_ai.models.purchase_order import PurchaseOrder
     from enterpriseops_ai.models.service_ticket import ServiceTicket
+    from enterpriseops_ai.models.supplier_alias import SupplierAlias
 
 
 class Supplier(TimestampMixin, Base):
@@ -26,4 +27,9 @@ class Supplier(TimestampMixin, Base):
 
     service_tickets: Mapped[list["ServiceTicket"]] = relationship(
         back_populates="supplier",
+    )
+
+    aliases: Mapped[list["SupplierAlias"]] = relationship(
+        back_populates="supplier",
+        cascade="all, delete-orphan",
     )

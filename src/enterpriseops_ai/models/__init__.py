@@ -4,6 +4,7 @@ from enterpriseops_ai.models.purchase_order import PurchaseOrder
 from enterpriseops_ai.models.purchase_order_line import PurchaseOrderLine
 from enterpriseops_ai.models.service_ticket import ServiceTicket
 from enterpriseops_ai.models.supplier import Supplier
+from enterpriseops_ai.models.supplier_alias import SupplierAlias
 
 __all__ = [
     "Document",
@@ -12,4 +13,5 @@ __all__ = [
     "PurchaseOrderLine",
     "ServiceTicket",
     "Supplier",
+    "SupplierAlias",
 ]

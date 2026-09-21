@@ -48,7 +48,7 @@ class EnterpriseTools:
         self.service_ticket_repository = ServiceTicketRepository(session)
 
     def get_supplier(self, name: str) -> SupplierResult | None:
-        supplier = self.supplier_repository.get_by_name(name)
+        supplier = self.supplier_repository.resolve_by_name_or_alias(name)
 
         if supplier is None:
             return None
