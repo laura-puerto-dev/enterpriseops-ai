@@ -30,3 +30,18 @@ class InvestigationStateUpdate(TypedDict, total=False):
     documents: list[DocumentEvidence]
     answer: InvestigationAnswer | None
     errors: list[str]
+
+
+def create_initial_investigation_state(
+    question: str,
+) -> InvestigationState:
+    return {
+        "question": question,
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": None,
+        "errors": [],
+    }

@@ -1,17 +1,9 @@
-from openai import OpenAI
-
-from enterpriseops_ai.ai.synthesis import SynthesisService
-from enterpriseops_ai.ai.understanding import QuestionUnderstandingService
 from enterpriseops_ai.core.config import get_settings
 from enterpriseops_ai.db.session import SessionFactory
-from enterpriseops_ai.orchestration.nodes import InvestigationNodes
-from enterpriseops_ai.orchestration.state import InvestigationState
-from enterpriseops_ai.orchestration.workflow import InvestigationWorkflow
-from enterpriseops_ai.rag.embeddings import EmbeddingService
-from enterpriseops_ai.rag.retrieval import RetrievalService
-from enterpriseops_ai.repositories.document_chunk import DocumentChunkRepository
-from enterpriseops_ai.tools.documents import DocumentTools
-from enterpriseops_ai.tools.enterprise import EnterpriseTools
+from enterpriseops_ai.orchestration.factory import create_investigation_workflow
+from enterpriseops_ai.orchestration.state import (
+    create_initial_investigation_state,
+)
 
 
 def main() -> None:
@@ -20,43 +12,15 @@ def main() -> None:
     if settings.openai_api_key is None:
         raise RuntimeError("OPENAI_API_KEY is required to run an investigation.")
 
-    client = OpenAI(api_key=settings.openai_api_key)
-
-    understanding_service = QuestionUnderstandingService(client=client)
-    synthesis_service = SynthesisService(client=client)
-    embedding_service = EmbeddingService(api_key=settings.openai_api_key)
-
     with SessionFactory() as session:
-        enterprise_tools = EnterpriseTools(session=session)
-
-        document_chunk_repository = DocumentChunkRepository(session=session)
-        retrieval_service = RetrievalService(
-            embedding_service=embedding_service,
-            repository=document_chunk_repository,
-        )
-        document_tools = DocumentTools(
-            retrieval_service=retrieval_service,
+        workflow = create_investigation_workflow(
+            session=session,
+            openai_api_key=settings.openai_api_key,
         )
 
-        nodes = InvestigationNodes(
-            understanding_service=understanding_service,
-            enterprise_tools=enterprise_tools,
-            document_tools=document_tools,
-            synthesis_service=synthesis_service,
+        initial_state = create_initial_investigation_state(
+            question="Why are purchase orders from supplier ACME being delayed?"
         )
-
-        workflow = InvestigationWorkflow(nodes=nodes)
-
-        initial_state: InvestigationState = {
-            "question": "Why are purchase orders from supplier ACME being delayed?",
-            "supplier_name": None,
-            "supplier": None,
-            "purchase_orders": [],
-            "service_tickets": [],
-            "documents": [],
-            "answer": None,
-            "errors": [],
-        }
 
         result = workflow.invoke(initial_state)
 
