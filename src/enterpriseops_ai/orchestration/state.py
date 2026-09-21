@@ -1,4 +1,5 @@
-from typing import TypedDict
+from operator import add
+from typing import Annotated, TypedDict
 
 from enterpriseops_ai.tools.documents import DocumentEvidence
 from enterpriseops_ai.tools.enterprise import (
@@ -16,7 +17,7 @@ class InvestigationState(TypedDict):
     service_tickets: list[ServiceTicketResult]
     documents: list[DocumentEvidence]
     answer: str | None
-    errors: list[str]
+    errors: Annotated[list[str], add]
 
 
 class InvestigationStateUpdate(TypedDict, total=False):

@@ -107,3 +107,12 @@ class InvestigationNodes:
         return {
             "documents": documents,
         }
+
+    def route_after_supplier(
+        self,
+        state: InvestigationState,
+    ) -> str:
+        if state["supplier"] is None:
+            return "search_documents"
+
+        return "search_purchase_orders"

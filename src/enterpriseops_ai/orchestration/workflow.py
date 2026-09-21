@@ -31,7 +31,14 @@ class InvestigationWorkflow:
 
         builder.add_edge(START, "understand")
         builder.add_edge("understand", "find_supplier")
-        builder.add_edge("find_supplier", "search_purchase_orders")
+        builder.add_conditional_edges(
+            "find_supplier",
+            self._nodes.route_after_supplier,
+            {
+                "search_purchase_orders": "search_purchase_orders",
+                "search_documents": "search_documents",
+            },
+        )
         builder.add_edge("search_purchase_orders", "search_service_tickets")
         builder.add_edge("search_service_tickets", "search_documents")
         builder.add_edge("search_documents", END)

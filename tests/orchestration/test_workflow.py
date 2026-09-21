@@ -109,3 +109,61 @@ def test_workflow_understands_and_resolves_supplier() -> None:
     document_tools.search_documents.assert_called_once_with(
         question="Why are ACME's orders late?",
     )
+
+
+def test_workflow_skips_structured_tools_when_supplier_is_not_resolved() -> None:
+    understanding_service = Mock(spec=QuestionUnderstandingService)
+    understanding_service.understand.return_value = InvestigationContext(
+        supplier_name=None,
+    )
+
+    enterprise_tools = Mock(spec=EnterpriseTools)
+
+    document_tools = Mock(spec=DocumentTools)
+    document = DocumentEvidence(
+        chunk_id=1,
+        document_id=10,
+        document_title="Supplier Delivery Policy",
+        document_source="supplier_delivery_policy.md",
+        chunk_index=0,
+        content="Delayed deliveries must be investigated with the supplier.",
+        distance=0.25,
+    )
+    document_tools.search_documents.return_value = [document]
+
+    nodes = InvestigationNodes(
+        understanding_service=understanding_service,
+        enterprise_tools=enterprise_tools,
+        document_tools=document_tools,
+    )
+    workflow = InvestigationWorkflow(nodes=nodes)
+
+    initial_state: InvestigationState = {
+        "question": "Why are these purchase orders late?",
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": None,
+        "errors": ["Previous warning."],
+    }
+
+    result = workflow.invoke(initial_state)
+
+    assert result["supplier_name"] is None
+    assert result["supplier"] is None
+    assert result["purchase_orders"] == []
+    assert result["service_tickets"] == []
+    assert result["documents"] == [document]
+    assert result["errors"] == [
+        "Previous warning.",
+        "No supplier could be identified from the question.",
+    ]
+
+    enterprise_tools.get_supplier.assert_not_called()
+    enterprise_tools.search_purchase_orders.assert_not_called()
+    enterprise_tools.search_service_tickets.assert_not_called()
+    document_tools.search_documents.assert_called_once_with(
+        question="Why are these purchase orders late?",
+    )
