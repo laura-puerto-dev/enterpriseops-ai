@@ -21,7 +21,7 @@ The system is designed to progressively combine:
 
 ## Current Status
 
-The deterministic enterprise-data foundation, semantic retrieval baseline, and retrieval-evaluation foundation are implemented.
+The deterministic enterprise-data foundation, semantic retrieval baseline, retrieval-evaluation foundation, controlled tool layer, LangGraph investigation workflow, evidence-grounded synthesis, and FastAPI investigation endpoint are implemented.
 
 Currently implemented:
 
@@ -45,6 +45,15 @@ Currently implemented:
 - separate PostgreSQL integration-test database
 - pytest, Ruff, and strict mypy quality tooling
 - GitHub Actions CI with PostgreSQL + pgvector, schema migrations, quality checks, and integration tests
+- controlled read-only enterprise and document tools
+- deterministic supplier alias resolution to canonical enterprise identity
+- LangGraph investigation workflow with explicit state and conditional routing
+- structured natural-language understanding
+- evidence-grounded LLM synthesis with explicit sources and limitations
+- controlled degradation when supplier resolution is unavailable
+- reusable workflow composition shared by CLI and FastAPI
+- `POST /ai/investigate` with typed request and response contracts
+- API boundary tests using FastAPI dependency overrides
 
 The retrieval baseline has been evaluated end-to-end using real embeddings and semantic retrieval. The evaluation suite now contains 15 cases, including multi-source and multi-evidence challenge scenarios. Across 13 source-evaluable cases, both `top_k=3` and `top_k=5` achieved 100% source hit, 100% mean source coverage, and an MRR of 0.949.
 
@@ -52,23 +61,27 @@ A controlled five-run comparison measured mean semantic evidence coverage of 94.
 
 These measurements establish a controlled baseline for subsequent retrieval experiments. They are intended for comparative evaluation as the retrieval strategy evolves rather than as a claim of production-level accuracy.
 
-Controlled orchestration, LLM synthesis, observability, and reliability behavior are being added incrementally.
+Observability, LLMOps, generation evaluation, and additional reliability and security behavior are being added incrementally.
 
 ## Architecture
 
-The current deterministic data path is:
+The current investigation path is:
 
 ```text
-Repositories
-     ↓
-SQLAlchemy
-     ↓
+FastAPI
+   ↓
+LangGraph investigation workflow
+   ↓
+controlled tools
+   ├── structured enterprise tools → repositories → SQLAlchemy
+   └── document tool → retrieval service → embeddings + pgvector
+   ↓
 PostgreSQL + pgvector
+   ↓
+evidence-grounded LLM synthesis
 ```
 
-The FastAPI application currently exposes the health endpoint and is not yet connected to the repository layer through application routes.
-
-Future AI capabilities will build on the deterministic data foundation rather than replacing enterprise queries with LLM calls.
+Structured enterprise facts are retrieved deterministically through controlled read-only capabilities rather than reconstructed by the LLM. LangGraph coordinates the known investigation path, including conditional routing and controlled degradation when canonical supplier resolution is unavailable.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the evolving system architecture and target MVP design.
 
@@ -144,6 +157,24 @@ Run the API:
 
 ```bash
 uv run uvicorn enterpriseops_ai.main:app --reload
+```
+
+The investigation endpoint requires `OPENAI_API_KEY`. The application can still start and expose `/health` without AI-provider credentials; `/ai/investigate` returns `503 Service Unavailable` when the AI capability is not configured.
+
+Example investigation request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ai/investigate \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Why are purchase orders from supplier ACME being delayed?"}'
+```
+
+The endpoint returns a structured answer containing a summary, findings, evidence, sources, recommended actions, limitations, and any controlled workflow errors.
+
+The same workflow can also be exercised directly through the diagnostic CLI:
+
+```bash
+uv run python -m enterpriseops_ai.scripts.run_investigation
 ```
 
 ## Integration Test Database

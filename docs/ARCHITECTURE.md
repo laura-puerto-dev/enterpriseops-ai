@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | In progress |
-| **Last updated** | 2026-09-19 |
+| **Last updated** | 2026-09-21 |
 | **Scope** | MVP |
 
 ## Overview
@@ -38,9 +38,11 @@ The architecture will preserve the distinction between source data, retrieved ev
 
 ### Controlled AI capabilities
 
-Future AI components will not receive unrestricted access to enterprise systems.
+AI components do not receive unrestricted access to enterprise systems.
 
-Enterprise operations will be exposed through explicit, controlled tools with narrow responsibilities.
+Enterprise operations are exposed through explicit, controlled, read-only tools with narrow responsibilities and typed application-level results.
+
+The current investigation workflow uses deterministic orchestration for the known investigation path, while LLMs are used for natural-language understanding and evidence-grounded synthesis rather than unrestricted control of execution.
 
 This makes AI behavior easier to test, observe, constrain, and reason about.
 
@@ -60,55 +62,35 @@ Additional services, infrastructure, abstractions, or agent autonomy should only
 
 ## Current Architecture
 
-The current implementation contains four foundations that are not yet connected through application routes:
+The current implementation connects the enterprise data and RAG foundations through a controlled investigation workflow:
 
-1. the FastAPI application foundation,
-2. deterministic enterprise data access,
-3. document ingestion and semantic retrieval over enterprise knowledge,
-4. retrieval evaluation over a deterministic golden dataset.
+1. FastAPI exposes the investigation capability through `POST /ai/investigate`,
+2. LangGraph coordinates natural-language understanding, deterministic entity resolution, structured enterprise tools, document retrieval, and synthesis,
+3. read-only tools provide explicit application-level contracts over repositories and RAG retrieval,
+4. evidence-grounded LLM synthesis produces structured answers, sources, recommended actions, and limitations,
+5. retrieval evaluation remains independently measurable through the golden dataset and controlled experiments.
 
 ```text
-┌──────────────────────────────┐
-│       FastAPI Backend        │
-│          /health             │
-└──────────────────────────────┘
-
-
-┌──────────────────────────────┐
-│   Deterministic Repositories │
-└──────────────┬───────────────┘
-               │
-               ▼
-┌──────────────────────────────┐
-│         SQLAlchemy           │
-└──────────────┬───────────────┘
-               │
-               ▼
-┌──────────────────────────────┐
-│ PostgreSQL + pgvector        │
-└──────────────────────────────┘
-               ▲
-               │
-┌──────────────┴───────────────┐
-│ Semantic Document Retrieval  │
-└──────────────▲───────────────┘
-               │
-┌──────────────┴───────────────┐
-│ Chunking + OpenAI Embeddings │
-└──────────────▲───────────────┘
-               │
-┌──────────────┴───────────────┐
-│ Enterprise Markdown Corpus   │
-└──────────────────────────────┘
+FastAPI (/health, /ai/investigate)
+    ↓
+LangGraph Investigation Workflow
+    ↓
+Controlled Tools
+    ├── Enterprise Tools → Repositories → SQLAlchemy
+    └── Document Tools → Retrieval Service → Embeddings + Vector Retrieval
+    ↓
+PostgreSQL + pgvector
+    ↓
+Evidence-grounded LLM Synthesis
 ```
 
-The FastAPI application currently exposes only the health endpoint.
+The FastAPI investigation route receives a typed request, obtains the workflow through dependency injection, creates the initial investigation state, executes the workflow, and returns a typed response without exposing internal orchestration state.
 
-The deterministic repository layer is implemented and tested directly against PostgreSQL, but it is not yet exposed through API routes.
+The deterministic repository layer remains independently testable and is consumed by explicit read-only enterprise tools rather than being exposed directly to the LLM.
 
-The document retrieval foundation is also implemented independently of the API. Enterprise documents can be chunked, embedded, persisted in pgvector, and retrieved through exact cosine similarity search.
+The document retrieval foundation is reused through a dedicated retrieval service and document tool, keeping embedding and vector-search behavior independent from LangGraph.
 
-Future AI capabilities will connect these foundations through controlled tools and orchestration.
+The same investigation workflow can be executed through the HTTP API or the diagnostic CLI because dependency composition and initial-state construction are shared rather than duplicated.
 
 ---
 
@@ -181,6 +163,8 @@ The document ingestion service is tested against real PostgreSQL while chunking 
 The semantic retrieval repository is tested against real PostgreSQL and pgvector using controlled vectors, verifying cosine-distance ordering without depending on an external embedding provider.
 
 End-to-end diagnostic retrieval has also been exercised using real enterprise documents and real OpenAI embeddings.
+
+The investigation workflow is tested separately from the HTTP boundary. API tests replace the workflow dependency with a deterministic fake, allowing request validation and response serialization to be verified without requiring OpenAI or PostgreSQL. The complete investigation path has also been exercised end-to-end through the real FastAPI endpoint using PostgreSQL, pgvector, OpenAI, controlled tools, LangGraph orchestration, and structured synthesis.
 
 Retrieval evaluation uses a deterministic golden dataset containing answerable, partially answerable, and unanswerable cases. Deterministic metrics measure source retrieval and ranking, while semantic evidence coverage is evaluated separately using a constrained LLM judge with structured output.
 
@@ -330,19 +314,43 @@ Future source adapters may load content from systems such as S3, SharePoint, upl
 
 ---
 
-## Planned Tool and Orchestration Layer
+## Tool and Orchestration Layer
 
-Structured enterprise capabilities will be exposed as a small allow-list of read-only tools.
+Structured enterprise capabilities are exposed as a small allow-list of read-only tools.
 
-The MVP is expected to include capabilities equivalent to supplier lookup, purchase-order search, service-ticket search, and document search.
+The current tool layer provides supplier resolution, delayed purchase-order search, service-ticket search, and semantic document search. Tool results use explicit application-level DTOs rather than exposing SQLAlchemy persistence models to the AI layer.
 
-LangGraph will coordinate these capabilities.
+Human-facing supplier references are resolved deterministically before downstream structured-data access. Exact canonical names and known aliases map to a stable supplier ID, which is then propagated through the workflow. The LLM does not silently guess enterprise identity. A production evolution could return multiple candidates and require clarification when resolution is ambiguous.
 
-The initial workflow will favor deterministic orchestration because the primary investigation path is known in advance.
+Document search is exposed through a document tool backed by a reusable retrieval service. This keeps the embedding and vector-search implementation independent from the orchestration framework.
 
-Limited dynamic routing may be introduced later if it demonstrates a concrete benefit.
+LangGraph coordinates the investigation through explicit shared state, nodes, edges, and conditional routing. The current workflow is:
 
-The system will not introduce unrestricted agent autonomy merely to make the architecture more agentic.
+```text
+START
+  ↓
+understand
+  ↓
+find_supplier
+  ├─ resolved ──→ search_purchase_orders ──→ search_service_tickets ─┐
+  └─ unresolved ─────────────────────────────────────────────────────┤
+                                                                    ↓
+                                                             search_documents
+                                                                    ↓
+                                                               synthesize
+                                                                    ↓
+                                                                   END
+```
+
+The workflow deliberately favors deterministic orchestration because the primary investigation path is known in advance. Conditional routing skips structured operations that require a canonical supplier ID when entity resolution fails, while document retrieval and synthesis can still continue.
+
+Workflow errors accumulate in shared state rather than replacing previous failures. This supports controlled degradation: incomplete branches can converge on synthesis, where the model is instructed to use only collected evidence, avoid inventing missing facts or unsupported causal relationships, and communicate limitations explicitly.
+
+The synthesis step returns a structured `InvestigationAnswer` containing a summary, findings, evidence, sources, recommended actions, and limitations.
+
+A shared composition factory builds the investigation workflow from externally managed infrastructure dependencies. FastAPI owns the request-scoped database-session lifecycle, while both the API and diagnostic CLI reuse the same workflow construction and initial-state factory.
+
+Limited dynamic routing may be introduced later if it demonstrates a concrete benefit. The system will not introduce unrestricted agent autonomy merely to make the architecture more agentic.
 
 ---
 
@@ -385,7 +393,7 @@ Partially answerable cases deliberately preserve the distinction between retriev
 
 Unanswerable cases with no expected evidence are excluded from evidence-coverage aggregation. Vector retrieval may still return nearest-neighbor chunks for these questions, reinforcing the distinction between retrieving candidates and establishing sufficient evidence.
 
-The first controlled retrieval experiment has compared `top_k=3` with `top_k=5`. Further retrieval changes will be introduced only when evaluation identifies a concrete failure mode or measurable need. Generation-specific evaluation will be introduced when evidence-grounded LLM synthesis is implemented.
+The first controlled retrieval experiment has compared `top_k=3` with `top_k=5`. Further retrieval changes will be introduced only when evaluation identifies a concrete failure mode or measurable need. Generation-specific evaluation is the next evaluation step now that evidence-grounded LLM synthesis is implemented.
 
 ---
 
