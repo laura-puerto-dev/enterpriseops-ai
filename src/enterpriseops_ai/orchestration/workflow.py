@@ -1,6 +1,7 @@
-from typing import cast
+from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from enterpriseops_ai.orchestration.nodes import InvestigationNodes
 from enterpriseops_ai.orchestration.state import InvestigationState
@@ -11,7 +12,9 @@ class InvestigationWorkflow:
         self._nodes = nodes
         self._graph = self._build_graph()
 
-    def _build_graph(self):
+    def _build_graph(
+        self,
+    ) -> CompiledStateGraph[InvestigationState, None, Any, Any]:
         builder = StateGraph(InvestigationState)
 
         builder.add_node("understand", self._nodes.understand)
