@@ -1,14 +1,19 @@
+import os
+
+os.environ["LANGFUSE_TRACING_ENABLED"] = "false"
+
 from collections.abc import Generator
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 from enterpriseops_ai.core.config import get_settings
 
 
-@pytest.fixture
-def db_session() -> Generator[Session, None, None]:
+@pytest.fixture(scope="session")
+def db_engine() -> Generator[Engine, None, None]:
     settings = get_settings()
 
     test_database_url = (
@@ -17,15 +22,23 @@ def db_session() -> Generator[Session, None, None]:
     )
 
     engine = create_engine(test_database_url)
-    session_factory = sessionmaker(
-        bind=engine,
-        class_=Session,
-        expire_on_commit=False,
-    )
 
-    connection = engine.connect()
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def db_session(db_engine: Engine) -> Generator[Session, None, None]:
+    connection = db_engine.connect()
     transaction = connection.begin()
-    session = session_factory(bind=connection)
+
+    session = Session(
+        bind=connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
 
     try:
         yield session
@@ -34,4 +47,3 @@ def db_session() -> Generator[Session, None, None]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
-        engine.dispose()

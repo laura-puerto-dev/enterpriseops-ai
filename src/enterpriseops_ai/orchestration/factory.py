@@ -1,4 +1,4 @@
-from openai import OpenAI
+from langfuse.openai import OpenAI  # type: ignore[attr-defined]
 from sqlalchemy.orm import Session
 
 from enterpriseops_ai.ai.synthesis import SynthesisService

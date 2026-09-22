@@ -3,10 +3,14 @@ from typing import Any, cast
 from uuid import uuid4
 
 import structlog
+from langfuse import get_client, propagate_attributes
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from enterpriseops_ai.observability.context import agent_run_id_var
+from enterpriseops_ai.observability.context import (
+    agent_run_id_var,
+    request_id_var,
+)
 from enterpriseops_ai.orchestration.nodes import InvestigationNodes
 from enterpriseops_ai.orchestration.state import InvestigationState
 
@@ -69,7 +73,22 @@ class InvestigationWorkflow:
             question=state["question"],
         )
         try:
-            result = cast(InvestigationState, self._graph.invoke(state))
+            langfuse = get_client()
+
+            with (
+                langfuse.start_as_current_observation(
+                    as_type="span",
+                    name="investigation",
+                ),
+                propagate_attributes(
+                    metadata={
+                        "request_id": request_id_var.get() or "",
+                        "agent_run_id": agent_run_id,
+                    },
+                ),
+            ):
+                result = cast(InvestigationState, self._graph.invoke(state))
+
             logger.info(
                 "investigation_completed",
                 duration_ms=round((perf_counter() - start_time) * 1000, 2),
