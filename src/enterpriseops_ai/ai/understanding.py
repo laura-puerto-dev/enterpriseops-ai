@@ -1,5 +1,10 @@
+from time import perf_counter
+
+import structlog
 from openai import OpenAI
 from pydantic import BaseModel
+
+logger = structlog.get_logger()
 
 
 class InvestigationContext(BaseModel):
@@ -13,6 +18,7 @@ class QuestionUnderstandingService:
         self._client = client
 
     def understand(self, question: str) -> InvestigationContext:
+        start_time = perf_counter()
         response = self._client.responses.parse(
             model=self.MODEL,
             input=[
@@ -38,6 +44,13 @@ class QuestionUnderstandingService:
                 },
             ],
             text_format=InvestigationContext,
+        )
+
+        logger.info(
+            "llm_call_completed",
+            operation="question_understanding",
+            model=self.MODEL,
+            duration_ms=round((perf_counter() - start_time) * 1000, 2),
         )
 
         result = response.output_parsed

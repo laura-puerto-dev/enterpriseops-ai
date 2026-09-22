@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import Mock
 
+import pytest
+
 from enterpriseops_ai.ai.synthesis import (
     InvestigationAnswer,
     SynthesisService,
@@ -10,6 +12,7 @@ from enterpriseops_ai.ai.understanding import (
     InvestigationContext,
     QuestionUnderstandingService,
 )
+from enterpriseops_ai.observability.context import agent_run_id_var
 from enterpriseops_ai.orchestration.nodes import InvestigationNodes
 from enterpriseops_ai.orchestration.state import InvestigationState
 from enterpriseops_ai.orchestration.workflow import InvestigationWorkflow
@@ -209,3 +212,30 @@ def test_workflow_skips_structured_tools_when_supplier_is_not_resolved() -> None
             "No supplier could be identified from the question.",
         ],
     )
+
+
+def test_workflow_restores_agent_run_context_when_graph_fails() -> None:
+    nodes = Mock(spec=InvestigationNodes)
+    workflow = InvestigationWorkflow(nodes=nodes)
+
+    graph = Mock()
+    graph.invoke.side_effect = RuntimeError("Graph failed")
+    workflow._graph = graph
+
+    state: InvestigationState = {
+        "question": "Why are ACME's orders late?",
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": None,
+        "errors": [],
+    }
+
+    assert agent_run_id_var.get() is None
+
+    with pytest.raises(RuntimeError, match="Graph failed"):
+        workflow.invoke(state)
+
+    assert agent_run_id_var.get() is None

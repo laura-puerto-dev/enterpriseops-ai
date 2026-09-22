@@ -1,5 +1,7 @@
 import json
+from time import perf_counter
 
+import structlog
 from openai import OpenAI
 from pydantic import BaseModel
 
@@ -9,6 +11,8 @@ from enterpriseops_ai.tools.enterprise import (
     ServiceTicketResult,
     SupplierResult,
 )
+
+logger = structlog.get_logger()
 
 
 class InvestigationAnswer(BaseModel):
@@ -43,6 +47,7 @@ class SynthesisService:
             "documents": [document.__dict__ for document in documents],
             "workflow_errors": errors,
         }
+        start_time = perf_counter()
 
         response = self.client.responses.parse(
             model=self.MODEL,
@@ -72,6 +77,13 @@ class SynthesisService:
                 },
             ],
             text_format=InvestigationAnswer,
+        )
+
+        logger.info(
+            "llm_call_completed",
+            operation="investigation_synthesis",
+            model=self.MODEL,
+            duration_ms=round((perf_counter() - start_time) * 1000, 2),
         )
 
         answer = response.output_parsed

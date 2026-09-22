@@ -1,12 +1,16 @@
+from time import perf_counter
 from typing import Any, cast
 from uuid import uuid4
 
+import structlog
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from enterpriseops_ai.observability.context import agent_run_id_var
 from enterpriseops_ai.orchestration.nodes import InvestigationNodes
 from enterpriseops_ai.orchestration.state import InvestigationState
+
+logger = structlog.get_logger()
 
 
 class InvestigationWorkflow:
@@ -58,7 +62,24 @@ class InvestigationWorkflow:
     def invoke(self, state: InvestigationState) -> InvestigationState:
         agent_run_id = str(uuid4())
         token = agent_run_id_var.set(agent_run_id)
+        start_time = perf_counter()
+
+        logger.info(
+            "investigation_started",
+            question=state["question"],
+        )
         try:
-            return cast(InvestigationState, self._graph.invoke(state))
+            result = cast(InvestigationState, self._graph.invoke(state))
+            logger.info(
+                "investigation_completed",
+                duration_ms=round((perf_counter() - start_time) * 1000, 2),
+            )
+            return result
+        except Exception:
+            logger.exception(
+                "investigation_failed",
+                duration_ms=round((perf_counter() - start_time) * 1000, 2),
+            )
+            raise
         finally:
             agent_run_id_var.reset(token)
