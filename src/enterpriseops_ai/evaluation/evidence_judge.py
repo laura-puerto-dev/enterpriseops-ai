@@ -24,8 +24,8 @@ def calculate_evidence_coverage(result: EvidenceJudgeResult) -> float:
 class EvidenceJudge:
     MODEL = "gpt-5-mini"
 
-    def __init__(self, api_key: str) -> None:
-        self._client = OpenAI(api_key=api_key)
+    def __init__(self, client: OpenAI) -> None:
+        self._client = client
 
     def evaluate(
         self,

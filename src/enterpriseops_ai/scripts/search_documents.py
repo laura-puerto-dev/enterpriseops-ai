@@ -1,5 +1,7 @@
 import sys
 
+from openai import OpenAI
+
 from enterpriseops_ai.core.config import get_settings
 from enterpriseops_ai.db.session import SessionFactory
 from enterpriseops_ai.rag.embeddings import EmbeddingService
@@ -22,7 +24,8 @@ def main() -> None:
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for semantic search")
 
-    embedding_service = EmbeddingService(api_key=settings.openai_api_key)
+    client = OpenAI(api_key=settings.openai_api_key)
+    embedding_service = EmbeddingService(client=client)
 
     with SessionFactory() as session:
         repository = DocumentChunkRepository(session)

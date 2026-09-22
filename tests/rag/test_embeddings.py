@@ -10,8 +10,7 @@ def test_embed_returns_embeddings_for_multiple_texts() -> None:
         MagicMock(embedding=[0.4, 0.5, 0.6]),
     ]
 
-    service = EmbeddingService(api_key="test-key")
-    service._client = client
+    service = EmbeddingService(client=client)
 
     result = service.embed(["first chunk", "second chunk"])
 
@@ -28,8 +27,7 @@ def test_embed_returns_embeddings_for_multiple_texts() -> None:
 def test_embed_returns_empty_list_without_calling_openai() -> None:
     client = MagicMock()
 
-    service = EmbeddingService(api_key="test-key")
-    service._client = client
+    service = EmbeddingService(client=client)
 
     result = service.embed([])
 

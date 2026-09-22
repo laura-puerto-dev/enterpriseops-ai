@@ -5,8 +5,8 @@ class EmbeddingService:
     MODEL = "text-embedding-3-small"
     DIMENSIONS = 1536
 
-    def __init__(self, api_key: str) -> None:
-        self._client = OpenAI(api_key=api_key)
+    def __init__(self, client: OpenAI) -> None:
+        self._client = client
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:

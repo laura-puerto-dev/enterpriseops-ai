@@ -1,6 +1,8 @@
 from pathlib import Path
 from statistics import mean
 
+from openai import OpenAI
+
 from enterpriseops_ai.core.config import get_settings
 from enterpriseops_ai.db.session import SessionFactory
 from enterpriseops_ai.evaluation.evidence_judge import (
@@ -25,6 +27,8 @@ def main() -> None:
     if settings.openai_api_key is None:
         raise RuntimeError("OPENAI_API_KEY is required to run retrieval evaluation.")
 
+    client = OpenAI(api_key=settings.openai_api_key)
+
     cases = load_golden_dataset(Path("evals/golden_dataset.json"))
 
     with SessionFactory() as session:
@@ -36,14 +40,14 @@ def main() -> None:
             )
 
         runner = RetrievalEvaluationRunner(
-            embedding_service=EmbeddingService(settings.openai_api_key),
+            embedding_service=EmbeddingService(client=client),
             chunk_repository=chunk_repository,
             top_k=top_k,
         )
 
         results = [runner.evaluate_case(case) for case in cases]
 
-        judge = EvidenceJudge(settings.openai_api_key)
+        judge = EvidenceJudge(client=client)
 
         evidence_coverages: dict[str, float] = {}
 

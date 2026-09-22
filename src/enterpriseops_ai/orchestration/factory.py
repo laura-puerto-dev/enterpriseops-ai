@@ -20,7 +20,7 @@ def create_investigation_workflow(
 
     understanding_service = QuestionUnderstandingService(client=client)
     synthesis_service = SynthesisService(client=client)
-    embedding_service = EmbeddingService(api_key=openai_api_key)
+    embedding_service = EmbeddingService(client=client)
 
     enterprise_tools = EnterpriseTools(session=session)
 

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -59,10 +59,7 @@ def test_calculate_evidence_coverage_with_no_criteria() -> None:
     assert calculate_evidence_coverage(result) == 0.0
 
 
-@patch("enterpriseops_ai.evaluation.evidence_judge.OpenAI")
-def test_evidence_judge_returns_structured_result(
-    mock_openai: MagicMock,
-) -> None:
+def test_evidence_judge_returns_structured_result() -> None:
     expected_result = EvidenceJudgeResult(
         criteria=[
             EvidenceCriterionResult(
@@ -78,10 +75,10 @@ def test_evidence_judge_returns_structured_result(
         ]
     )
 
-    mock_client = mock_openai.return_value
+    mock_client = MagicMock()
     mock_client.responses.parse.return_value.output_parsed = expected_result
 
-    judge = EvidenceJudge(api_key="test-key")
+    judge = EvidenceJudge(client=mock_client)
 
     result = judge.evaluate(
         question="What actions should be taken for a component shortage?",
@@ -99,14 +96,11 @@ def test_evidence_judge_returns_structured_result(
     mock_client.responses.parse.assert_called_once()
 
 
-@patch("enterpriseops_ai.evaluation.evidence_judge.OpenAI")
-def test_evidence_judge_fails_when_structured_result_is_missing(
-    mock_openai: MagicMock,
-) -> None:
-    mock_client = mock_openai.return_value
+def test_evidence_judge_fails_when_structured_result_is_missing() -> None:
+    mock_client = MagicMock()
     mock_client.responses.parse.return_value.output_parsed = None
 
-    judge = EvidenceJudge(api_key="test-key")
+    judge = EvidenceJudge(client=mock_client)
 
     with pytest.raises(
         RuntimeError,
@@ -119,10 +113,7 @@ def test_evidence_judge_fails_when_structured_result_is_missing(
         )
 
 
-@patch("enterpriseops_ai.evaluation.evidence_judge.OpenAI")
-def test_evidence_judge_fails_when_criteria_do_not_match(
-    mock_openai: MagicMock,
-) -> None:
+def test_evidence_judge_fails_when_criteria_do_not_match() -> None:
     expected_evidence = [
         "Identify affected purchase orders",
         "Identify the unavailable component",
@@ -145,10 +136,10 @@ def test_evidence_judge_fails_when_criteria_do_not_match(
         ]
     )
 
-    mock_client = mock_openai.return_value
+    mock_client = MagicMock()
     mock_client.responses.parse.return_value.output_parsed = incomplete_result
 
-    judge = EvidenceJudge(api_key="test-key")
+    judge = EvidenceJudge(client=mock_client)
 
     with pytest.raises(
         RuntimeError,
