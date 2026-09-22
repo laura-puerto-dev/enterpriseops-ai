@@ -1,3 +1,5 @@
+from langfuse import observe
+
 from enterpriseops_ai.ai.synthesis import SynthesisService
 from enterpriseops_ai.ai.understanding import QuestionUnderstandingService
 from enterpriseops_ai.orchestration.state import (
@@ -21,6 +23,12 @@ class InvestigationNodes:
         self.document_tools = document_tools
         self.synthesis_service = synthesis_service
 
+    @observe(
+        name="understand",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def understand(
         self,
         state: InvestigationState,
@@ -31,6 +39,12 @@ class InvestigationNodes:
             "supplier_name": context.supplier_name,
         }
 
+    @observe(
+        name="find_supplier",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def find_supplier(
         self,
         state: InvestigationState,
@@ -55,6 +69,12 @@ class InvestigationNodes:
             "supplier": supplier,
         }
 
+    @observe(
+        name="search_purchase_orders",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def search_purchase_orders(
         self,
         state: InvestigationState,
@@ -77,6 +97,12 @@ class InvestigationNodes:
             "purchase_orders": purchase_orders,
         }
 
+    @observe(
+        name="search_service_tickets",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def search_service_tickets(
         self,
         state: InvestigationState,
@@ -99,6 +125,12 @@ class InvestigationNodes:
             "service_tickets": service_tickets,
         }
 
+    @observe(
+        name="search_documents",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def search_documents(
         self,
         state: InvestigationState,
@@ -120,6 +152,12 @@ class InvestigationNodes:
 
         return "search_purchase_orders"
 
+    @observe(
+        name="synthesize",
+        as_type="span",
+        capture_input=False,
+        capture_output=False,
+    )
     def synthesize(
         self,
         state: InvestigationState,
