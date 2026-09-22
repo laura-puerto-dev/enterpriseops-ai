@@ -13,7 +13,8 @@ from enterpriseops_ai.ai.understanding import (
 def test_understand_returns_structured_context() -> None:
     client = Mock(spec=OpenAI)
     client.responses.parse.return_value = SimpleNamespace(
-        output_parsed=InvestigationContext(supplier_name="ACME")
+        output_parsed=InvestigationContext(supplier_name="ACME"),
+        usage=None,
     )
 
     service = QuestionUnderstandingService(client=client)
@@ -28,7 +29,9 @@ def test_understand_returns_structured_context() -> None:
 
 def test_understand_raises_when_structured_result_is_missing() -> None:
     client = Mock(spec=OpenAI)
-    client.responses.parse.return_value = SimpleNamespace(output_parsed=None)
+    client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=None, usage=None
+    )
 
     service = QuestionUnderstandingService(client=client)
 

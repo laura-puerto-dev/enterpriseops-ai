@@ -23,6 +23,7 @@ def test_synthesize_returns_structured_answer() -> None:
 
     response = Mock()
     response.output_parsed = expected_answer
+    response.usage = None
     client.responses.parse.return_value = response
 
     service = SynthesisService(client=client)
@@ -45,6 +46,7 @@ def test_synthesize_fails_when_structured_answer_is_missing() -> None:
 
     response = Mock()
     response.output_parsed = None
+    response.usage = None
     client.responses.parse.return_value = response
 
     service = SynthesisService(client=client)

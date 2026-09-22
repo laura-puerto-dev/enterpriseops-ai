@@ -79,11 +79,16 @@ class SynthesisService:
             text_format=InvestigationAnswer,
         )
 
+        usage = response.usage
+
         logger.info(
             "llm_call_completed",
             operation="investigation_synthesis",
             model=self.MODEL,
             duration_ms=round((perf_counter() - start_time) * 1000, 2),
+            input_tokens=usage.input_tokens if usage is not None else None,
+            output_tokens=usage.output_tokens if usage is not None else None,
+            total_tokens=usage.total_tokens if usage is not None else None,
         )
 
         answer = response.output_parsed
