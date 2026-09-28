@@ -24,6 +24,23 @@ class InvestigationAnswer(BaseModel):
     limitations: list[str]
 
 
+def build_investigation_evidence_context(
+    *,
+    supplier: SupplierResult | None,
+    purchase_orders: list[PurchaseOrderResult],
+    service_tickets: list[ServiceTicketResult],
+    documents: list[DocumentEvidence],
+    errors: list[str],
+) -> dict[str, object]:
+    return {
+        "supplier": supplier.__dict__ if supplier is not None else None,
+        "purchase_orders": [order.__dict__ for order in purchase_orders],
+        "service_tickets": [ticket.__dict__ for ticket in service_tickets],
+        "documents": [document.__dict__ for document in documents],
+        "workflow_errors": errors,
+    }
+
+
 class SynthesisService:
     MODEL = "gpt-5-mini"
 
@@ -40,13 +57,13 @@ class SynthesisService:
         documents: list[DocumentEvidence],
         errors: list[str],
     ) -> InvestigationAnswer:
-        evidence_context = {
-            "supplier": supplier.__dict__ if supplier is not None else None,
-            "purchase_orders": [order.__dict__ for order in purchase_orders],
-            "service_tickets": [ticket.__dict__ for ticket in service_tickets],
-            "documents": [document.__dict__ for document in documents],
-            "workflow_errors": errors,
-        }
+        evidence_context = build_investigation_evidence_context(
+            supplier=supplier,
+            purchase_orders=purchase_orders,
+            service_tickets=service_tickets,
+            documents=documents,
+            errors=errors,
+        )
         start_time = perf_counter()
 
         response = self.client.responses.parse(

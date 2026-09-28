@@ -1,0 +1,16 @@
+
+[
+  {
+    "id": "acme-delivery-delays",
+    "question": "Why are purchase orders from supplier ACME being delayed?",
+    "expected_evidence": [
+      "PO-ACME-002 is delayed due to temporary production capacity constraints.",
+      "PO-ACME-003 is delayed because an additional quality inspection is pending.",
+      "PO-ACME-004 is delayed because a critical production component is unavailable."
+    ],
+    "expected_limitations": [
+      "The available evidence does not establish a revised delivery date for the delayed orders.",
+      "The supplier-level capacity incident does not establish the cause of every delayed purchase order."
+    ]
+  }
+]
