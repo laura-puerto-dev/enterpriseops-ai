@@ -1,12 +1,26 @@
-from unittest.mock import MagicMock
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from enterpriseops_ai.ai.synthesis import InvestigationAnswer
 from enterpriseops_ai.evaluation.investigation_judge import (
     InvestigationCriterionResult,
+    InvestigationGoldenCase,
     InvestigationJudge,
     InvestigationJudgeResult,
+    UnsupportedClaim,
+    build_evaluation_result,
     calculate_coverage,
+    evaluate_investigation_case,
+    extract_investigation_evaluation_inputs,
+    load_investigation_golden_dataset,
+    run_investigation_case,
+)
+from enterpriseops_ai.orchestration.state import (
+    InvestigationState,
+    create_initial_investigation_state,
 )
 
 
@@ -257,3 +271,239 @@ def test_investigation_judge_fails_when_limitation_criteria_do_not_match() -> No
             expected_limitations=expected_limitations,
             final_answer="PO-002 is delayed due to capacity constraints.",
         )
+
+
+def test_load_investigation_golden_dataset(tmp_path: Path) -> None:
+    dataset_path = tmp_path / "investigation_golden_dataset.json"
+    dataset_path.write_text(
+        """
+        [
+          {
+            "id": "test-case",
+            "question": "Why is the order delayed?",
+            "expected_evidence": ["The order is delayed due to capacity constraints."],
+            "expected_limitations": ["No revised delivery date is available."]
+          }
+        ]
+        """,
+        encoding="utf-8",
+    )
+
+    cases = load_investigation_golden_dataset(dataset_path)
+
+    assert len(cases) == 1
+    assert cases[0].id == "test-case"
+    assert cases[0].question == "Why is the order delayed?"
+    assert cases[0].expected_evidence == [
+        "The order is delayed due to capacity constraints."
+    ]
+    assert cases[0].expected_limitations == ["No revised delivery date is available."]
+
+
+def test_build_evaluation_result() -> None:
+    judge_result = InvestigationJudgeResult(
+        grounded=False,
+        groundedness_reason="One factual claim is unsupported.",
+        unsupported_claims=[
+            UnsupportedClaim(
+                claim="The supplier has provided a revised delivery date.",
+                reason="No revised delivery date is present in the available evidence.",
+            )
+        ],
+        relevant=True,
+        relevance_reason="The answer directly addresses the question.",
+        evidence_criteria=[
+            InvestigationCriterionResult(
+                criterion="First evidence criterion",
+                supported=True,
+                reason="Supported.",
+            ),
+            InvestigationCriterionResult(
+                criterion="Second evidence criterion",
+                supported=False,
+                reason="Not supported.",
+            ),
+        ],
+        limitation_criteria=[
+            InvestigationCriterionResult(
+                criterion="First limitation criterion",
+                supported=True,
+                reason="Recognized.",
+            )
+        ],
+    )
+
+    result = build_evaluation_result(
+        case_id="test-case",
+        judge_result=judge_result,
+    )
+
+    assert result.case_id == "test-case"
+    assert result.grounded is False
+    assert result.relevant is True
+    assert result.evidence_coverage == 0.5
+    assert result.limitation_coverage == 1.0
+    assert result.unsupported_claims == judge_result.unsupported_claims
+
+
+def test_evaluate_investigation_case() -> None:
+    case = InvestigationGoldenCase(
+        id="test-case",
+        question="Why is the order delayed?",
+        expected_evidence=[
+            "The order is delayed due to capacity constraints.",
+        ],
+        expected_limitations=[
+            "No revised delivery date is available.",
+        ],
+    )
+
+    judge_result = InvestigationJudgeResult(
+        grounded=True,
+        groundedness_reason="All factual claims are supported.",
+        unsupported_claims=[],
+        relevant=True,
+        relevance_reason="The answer directly addresses the question.",
+        evidence_criteria=[
+            InvestigationCriterionResult(
+                criterion="The order is delayed due to capacity constraints.",
+                supported=True,
+                reason="The answer states this cause.",
+            )
+        ],
+        limitation_criteria=[
+            InvestigationCriterionResult(
+                criterion="No revised delivery date is available.",
+                supported=True,
+                reason="The answer acknowledges this limitation.",
+            )
+        ],
+    )
+
+    judge = MagicMock()
+    judge.evaluate.return_value = judge_result
+
+    available_evidence: dict[str, object] = {
+        "purchase_orders": [
+            {
+                "status": "delayed",
+                "cause": "capacity constraints",
+            }
+        ]
+    }
+
+    final_answer = (
+        "The order is delayed due to capacity constraints. "
+        "No revised delivery date is available."
+    )
+
+    result = evaluate_investigation_case(
+        case=case,
+        available_evidence=available_evidence,
+        final_answer=final_answer,
+        judge=judge,
+    )
+
+    judge.evaluate.assert_called_once_with(
+        question=case.question,
+        expected_evidence=case.expected_evidence,
+        expected_limitations=case.expected_limitations,
+        available_evidence=available_evidence,
+        final_answer=final_answer,
+    )
+
+    assert result.case_id == "test-case"
+    assert result.grounded is True
+    assert result.relevant is True
+    assert result.evidence_coverage == 1.0
+    assert result.limitation_coverage == 1.0
+    assert result.unsupported_claims == []
+
+
+def test_extract_investigation_evaluation_inputs() -> None:
+    answer = InvestigationAnswer(
+        summary="The order is delayed.",
+        findings=["The delay is caused by capacity constraints."],
+        evidence=["PO-002 is delayed."],
+        sources=["purchase_orders"],
+        recommended_actions=["Contact the supplier."],
+        limitations=["No revised delivery date is available."],
+    )
+
+    state: InvestigationState = {
+        "question": "Why is the order delayed?",
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": answer,
+        "errors": [],
+    }
+
+    available_evidence, final_answer = extract_investigation_evaluation_inputs(state)
+
+    assert available_evidence == {
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "workflow_errors": [],
+    }
+
+    assert json.loads(final_answer) == answer.model_dump()
+
+
+def test_extract_investigation_evaluation_inputs_fails_without_answer() -> None:
+    state: InvestigationState = {
+        "question": "Why is the order delayed?",
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": None,
+        "errors": [],
+    }
+
+    with pytest.raises(
+        RuntimeError,
+        match="Investigation workflow did not produce an answer.",
+    ):
+        extract_investigation_evaluation_inputs(state)
+
+
+def test_run_investigation_case() -> None:
+    case = InvestigationGoldenCase(
+        id="test-case",
+        question="Why is the order delayed?",
+        expected_evidence=[],
+        expected_limitations=[],
+    )
+
+    final_state: InvestigationState = {
+        "question": case.question,
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": None,
+        "errors": [],
+    }
+
+    workflow = Mock()
+    workflow.invoke.return_value = final_state
+
+    result = run_investigation_case(
+        case=case,
+        workflow=workflow,
+    )
+
+    workflow.invoke.assert_called_once_with(
+        create_initial_investigation_state(
+            question=case.question,
+        )
+    )
+
+    assert result == final_state

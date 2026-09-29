@@ -1,7 +1,30 @@
 import json
+from pathlib import Path
 
 from openai import OpenAI
 from pydantic import BaseModel
+
+from enterpriseops_ai.ai.synthesis import build_investigation_evidence_context
+from enterpriseops_ai.orchestration.state import (
+    InvestigationState,
+    create_initial_investigation_state,
+)
+from enterpriseops_ai.orchestration.workflow import InvestigationWorkflow
+
+
+class InvestigationGoldenCase(BaseModel):
+    id: str
+    question: str
+    expected_evidence: list[str]
+    expected_limitations: list[str]
+
+
+def load_investigation_golden_dataset(
+    path: Path,
+) -> list[InvestigationGoldenCase]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    return [InvestigationGoldenCase.model_validate(case) for case in data]
 
 
 class InvestigationCriterionResult(BaseModel):
@@ -27,6 +50,15 @@ class InvestigationJudgeResult(BaseModel):
     limitation_criteria: list[InvestigationCriterionResult]
 
 
+class InvestigationEvaluationResult(BaseModel):
+    case_id: str
+    grounded: bool
+    relevant: bool
+    evidence_coverage: float
+    limitation_coverage: float
+    unsupported_claims: list[UnsupportedClaim]
+
+
 def calculate_coverage(
     criteria: list[InvestigationCriterionResult],
 ) -> float:
@@ -34,6 +66,20 @@ def calculate_coverage(
         return 0.0
 
     return sum(item.supported for item in criteria) / len(criteria)
+
+
+def build_evaluation_result(
+    case_id: str,
+    judge_result: InvestigationJudgeResult,
+) -> InvestigationEvaluationResult:
+    return InvestigationEvaluationResult(
+        case_id=case_id,
+        grounded=judge_result.grounded,
+        relevant=judge_result.relevant,
+        evidence_coverage=calculate_coverage(judge_result.evidence_criteria),
+        limitation_coverage=calculate_coverage(judge_result.limitation_criteria),
+        unsupported_claims=judge_result.unsupported_claims,
+    )
 
 
 class InvestigationJudge:
@@ -148,3 +194,55 @@ class InvestigationJudge:
             )
 
         return result
+
+
+def evaluate_investigation_case(
+    case: InvestigationGoldenCase,
+    available_evidence: dict[str, object],
+    final_answer: str,
+    judge: InvestigationJudge,
+) -> InvestigationEvaluationResult:
+    judge_result = judge.evaluate(
+        question=case.question,
+        expected_evidence=case.expected_evidence,
+        expected_limitations=case.expected_limitations,
+        available_evidence=available_evidence,
+        final_answer=final_answer,
+    )
+
+    return build_evaluation_result(
+        case_id=case.id,
+        judge_result=judge_result,
+    )
+
+
+def extract_investigation_evaluation_inputs(
+    state: InvestigationState,
+) -> tuple[dict[str, object], str]:
+    answer = state["answer"]
+
+    if answer is None:
+        raise RuntimeError("Investigation workflow did not produce an answer.")
+
+    available_evidence = build_investigation_evidence_context(
+        supplier=state["supplier"],
+        purchase_orders=state["purchase_orders"],
+        service_tickets=state["service_tickets"],
+        documents=state["documents"],
+        errors=state["errors"],
+    )
+
+    final_answer = answer.model_dump_json(indent=2)
+
+    return available_evidence, final_answer
+
+
+def run_investigation_case(
+    case: InvestigationGoldenCase,
+    workflow: InvestigationWorkflow,
+) -> InvestigationState:
+    initial_state = create_initial_investigation_state(
+        question=case.question,
+    )
+
+    return workflow.invoke(initial_state)
