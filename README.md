@@ -21,7 +21,7 @@ The system is designed to progressively combine:
 
 ## Current Status
 
-The deterministic enterprise-data foundation, semantic retrieval baseline, retrieval-evaluation foundation, controlled tool layer, LangGraph investigation workflow, evidence-grounded synthesis, and FastAPI investigation endpoint are implemented.
+The deterministic enterprise-data foundation, semantic retrieval baseline, retrieval-evaluation foundation, controlled tool layer, LangGraph investigation workflow, evidence-grounded synthesis, FastAPI investigation endpoint, Langfuse observability, and end-to-end investigation evaluation are implemented.
 
 Currently implemented:
 
@@ -54,6 +54,11 @@ Currently implemented:
 - reusable workflow composition shared by CLI and FastAPI
 - `POST /ai/investigate` with typed request and response contracts
 - API boundary tests using FastAPI dependency overrides
+- Langfuse tracing across the investigation workflow, including node spans, model generations, embeddings, request/run metadata, latency, token usage, and cost
+- structured end-to-end investigation evaluation covering groundedness, relevance, evidence coverage, limitation coverage, and unsupported claims
+- separate golden dataset and constrained LLM judge for final investigation quality
+- deterministic validation and aggregation of investigation-evaluation results
+- executable end-to-end investigation-evaluation runner
 
 The retrieval baseline has been evaluated end-to-end using real embeddings and semantic retrieval. The evaluation suite now contains 15 cases, including multi-source and multi-evidence challenge scenarios. Across 13 source-evaluable cases, both `top_k=3` and `top_k=5` achieved 100% source hit, 100% mean source coverage, and an MRR of 0.949.
 
@@ -61,7 +66,7 @@ A controlled five-run comparison measured mean semantic evidence coverage of 94.
 
 These measurements establish a controlled baseline for subsequent retrieval experiments. They are intended for comparative evaluation as the retrieval strategy evolves rather than as a claim of production-level accuracy.
 
-Observability, LLMOps, generation evaluation, and additional reliability and security behavior are being added incrementally.
+Additional reliability and security behavior is being added incrementally.
 
 ## Architecture
 
@@ -79,6 +84,8 @@ controlled tools
 PostgreSQL + pgvector
    ↓
 evidence-grounded LLM synthesis
+   ↓
+Langfuse tracing + end-to-end investigation evaluation
 ```
 
 Structured enterprise facts are retrieved deterministically through controlled read-only capabilities rather than reconstructed by the LLM. LangGraph coordinates the known investigation path, including conditional routing and controlled degradation when canonical supplier resolution is unavailable.
@@ -152,6 +159,14 @@ uv run python -m enterpriseops_ai.scripts.evaluate_retrieval
 ```
 
 The evaluation command requires `OPENAI_API_KEY` because it uses real query embeddings and an LLM-based semantic evidence judge.
+
+Run the end-to-end investigation evaluation:
+
+```bash
+uv run python -m enterpriseops_ai.scripts.evaluate_investigation
+```
+
+This executes the real investigation workflow and evaluates the final structured answer separately for groundedness, relevance, expected-evidence coverage, expected-limitation coverage, and unsupported claims. The LLM judge performs semantic classification, while coverage metrics are calculated deterministically.
 
 Run the API:
 

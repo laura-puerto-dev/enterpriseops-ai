@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | In progress |
-| **Last updated** | 2026-09-21 |
+| **Last updated** | 2026-09-30 |
 | **Scope** | MVP |
 
 ## Overview
@@ -68,7 +68,9 @@ The current implementation connects the enterprise data and RAG foundations thro
 2. LangGraph coordinates natural-language understanding, deterministic entity resolution, structured enterprise tools, document retrieval, and synthesis,
 3. read-only tools provide explicit application-level contracts over repositories and RAG retrieval,
 4. evidence-grounded LLM synthesis produces structured answers, sources, recommended actions, and limitations,
-5. retrieval evaluation remains independently measurable through the golden dataset and controlled experiments.
+5. retrieval evaluation remains independently measurable through the golden dataset and controlled experiments,
+6. Langfuse traces the investigation workflow across orchestration nodes, model generations, embeddings, latency, token usage, and cost,
+7. end-to-end investigation evaluation measures the quality of the final generated answer separately from retrieval quality.
 
 ```text
 FastAPI (/health, /ai/investigate)
@@ -164,7 +166,7 @@ The semantic retrieval repository is tested against real PostgreSQL and pgvector
 
 End-to-end diagnostic retrieval has also been exercised using real enterprise documents and real OpenAI embeddings.
 
-The investigation workflow is tested separately from the HTTP boundary. API tests replace the workflow dependency with a deterministic fake, allowing request validation and response serialization to be verified without requiring OpenAI or PostgreSQL. The complete investigation path has also been exercised end-to-end through the real FastAPI endpoint using PostgreSQL, pgvector, OpenAI, controlled tools, LangGraph orchestration, and structured synthesis.
+The investigation workflow is tested separately from the HTTP boundary. API tests replace the workflow dependency with a deterministic fake, allowing request validation and response serialization to be verified without requiring OpenAI or PostgreSQL. The complete investigation path has also been exercised end-to-end through the real FastAPI endpoint using PostgreSQL, pgvector, OpenAI, controlled tools, LangGraph orchestration, and structured synthesis. The final investigation is also exercised through an executable end-to-end evaluation runner that invokes the real workflow and then evaluates the generated answer with a separate constrained LLM judge.
 
 Retrieval evaluation uses a deterministic golden dataset containing answerable, partially answerable, and unanswerable cases. Deterministic metrics measure source retrieval and ranking, while semantic evidence coverage is evaluated separately using a constrained LLM judge with structured output.
 
@@ -393,13 +395,23 @@ Partially answerable cases deliberately preserve the distinction between retriev
 
 Unanswerable cases with no expected evidence are excluded from evidence-coverage aggregation. Vector retrieval may still return nearest-neighbor chunks for these questions, reinforcing the distinction between retrieving candidates and establishing sufficient evidence.
 
-The first controlled retrieval experiment has compared `top_k=3` with `top_k=5`. Further retrieval changes will be introduced only when evaluation identifies a concrete failure mode or measurable need. Generation-specific evaluation is the next evaluation step now that evidence-grounded LLM synthesis is implemented.
+The first controlled retrieval experiment has compared `top_k=3` with `top_k=5`. Further retrieval changes will be introduced only when evaluation identifies a concrete failure mode or measurable need. Generation-specific evaluation is now implemented separately from retrieval evaluation. A dedicated investigation golden dataset defines expected evidence and expected limitations for the final answer. The evaluator receives the evidence actually available to synthesis so that groundedness is assessed against the system's real evidence context rather than only against the golden expectations.
+
+The investigation judge evaluates groundedness, unsupported claims, relevance, expected-evidence criteria, and expected-limitation criteria. Semantic classification remains the responsibility of the LLM judge, while evidence and limitation coverage are calculated deterministically after strict validation that the returned criteria exactly match the requested criteria. No single aggregate quality score is used because the dimensions diagnose different failure modes.
+
+Groundedness and coverage are intentionally independent. A response can be fully grounded while omitting expected evidence, and it can cover all expected evidence while also introducing an unsupported claim. This separation makes generation failures easier to diagnose than a single global score.
+
+The end-to-end runner executes the real investigation workflow, extracts the same structured and retrieved evidence representation used by synthesis, serializes the resulting `InvestigationAnswer`, and evaluates it through the separate investigation judge. Initial real executions produced grounded and relevant answers with full expected-evidence coverage and no unsupported claims. Expected-limitation coverage varied between 0.5 and 1.0 across observed runs, reinforcing that generated answers and LLM-based semantic evaluation are probabilistic and that a single run should not be treated as a stable benchmark.
 
 ---
 
-## Planned Observability and Reliability
+## Observability and Planned Reliability
 
-AI execution will expose operational information such as request and run identifiers, tool execution, retrieval behavior, model calls, latency, token usage, estimated cost where practical, retries, errors, and total execution time.
+Langfuse observability is implemented across the investigation workflow. A root `investigation` trace contains spans for the bounded orchestration nodes, while OpenAI generations and embedding calls are captured beneath the relevant execution path. Request and agent-run identifiers are propagated as metadata, and structured application logs record model-call and retrieval durations together with token usage and total workflow duration. Langfuse also provides model cost information for traced generations.
+
+The workflow under evaluation uses the Langfuse-wrapped OpenAI client, while the offline investigation judge is intentionally kept separate from the investigation trace. Tests disable cloud tracing so that the automated test suite remains deterministic and does not emit external telemetry.
+
+Environment loading is centralized so direct CLI entry points and the FastAPI application expose the same `.env` configuration to external SDKs such as Langfuse.
 
 The MVP will also exercise controlled failure scenarios.
 
