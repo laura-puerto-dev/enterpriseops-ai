@@ -246,3 +246,25 @@ def run_investigation_case(
     )
 
     return workflow.invoke(initial_state)
+
+
+def run_and_evaluate_investigation_case(
+    case: InvestigationGoldenCase,
+    workflow: InvestigationWorkflow,
+    judge: InvestigationJudge,
+) -> InvestigationEvaluationResult:
+    final_state = run_investigation_case(
+        case=case,
+        workflow=workflow,
+    )
+
+    available_evidence, final_answer = extract_investigation_evaluation_inputs(
+        final_state
+    )
+
+    return evaluate_investigation_case(
+        case=case,
+        available_evidence=available_evidence,
+        final_answer=final_answer,
+        judge=judge,
+    )

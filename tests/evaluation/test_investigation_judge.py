@@ -16,6 +16,7 @@ from enterpriseops_ai.evaluation.investigation_judge import (
     evaluate_investigation_case,
     extract_investigation_evaluation_inputs,
     load_investigation_golden_dataset,
+    run_and_evaluate_investigation_case,
     run_investigation_case,
 )
 from enterpriseops_ai.orchestration.state import (
@@ -507,3 +508,77 @@ def test_run_investigation_case() -> None:
     )
 
     assert result == final_state
+
+
+def test_run_and_evaluate_investigation_case() -> None:
+    case = InvestigationGoldenCase(
+        id="test-case",
+        question="Why is the order delayed?",
+        expected_evidence=[
+            "The order is delayed due to capacity constraints.",
+        ],
+        expected_limitations=[
+            "No revised delivery date is available.",
+        ],
+    )
+
+    answer = InvestigationAnswer(
+        summary="The order is delayed due to capacity constraints.",
+        findings=["The order is delayed due to capacity constraints."],
+        evidence=["The order is delayed."],
+        sources=["purchase_orders"],
+        recommended_actions=["Contact the supplier."],
+        limitations=["No revised delivery date is available."],
+    )
+
+    final_state: InvestigationState = {
+        "question": case.question,
+        "supplier_name": None,
+        "supplier": None,
+        "purchase_orders": [],
+        "service_tickets": [],
+        "documents": [],
+        "answer": answer,
+        "errors": [],
+    }
+
+    workflow = Mock()
+    workflow.invoke.return_value = final_state
+
+    judge_result = InvestigationJudgeResult(
+        grounded=True,
+        groundedness_reason="All factual claims are supported.",
+        unsupported_claims=[],
+        relevant=True,
+        relevance_reason="The answer directly addresses the question.",
+        evidence_criteria=[
+            InvestigationCriterionResult(
+                criterion=case.expected_evidence[0],
+                supported=True,
+                reason="The answer includes the expected evidence.",
+            )
+        ],
+        limitation_criteria=[
+            InvestigationCriterionResult(
+                criterion=case.expected_limitations[0],
+                supported=True,
+                reason="The answer acknowledges the limitation.",
+            )
+        ],
+    )
+
+    judge = MagicMock()
+    judge.evaluate.return_value = judge_result
+
+    result = run_and_evaluate_investigation_case(
+        case=case,
+        workflow=workflow,
+        judge=judge,
+    )
+
+    assert result.case_id == "test-case"
+    assert result.grounded is True
+    assert result.relevant is True
+    assert result.evidence_coverage == 1.0
+    assert result.limitation_coverage == 1.0
+    assert result.unsupported_claims == []

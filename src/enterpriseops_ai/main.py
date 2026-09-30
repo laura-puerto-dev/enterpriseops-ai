@@ -1,11 +1,9 @@
-from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from enterpriseops_ai.api.routes import router as ai_router
 from enterpriseops_ai.observability.logging import configure_logging
 from enterpriseops_ai.observability.middleware import request_context_middleware
 
-load_dotenv()
 configure_logging()
 
 app = FastAPI(
