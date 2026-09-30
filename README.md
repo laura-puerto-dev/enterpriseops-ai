@@ -140,6 +140,16 @@ Add an OpenAI API key to `.env` when running embedding-dependent functionality:
 OPENAI_API_KEY=...
 ```
 
+To enable Langfuse tracing, also configure the Langfuse credentials in `.env`:
+
+```text
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=...
+```
+
+Langfuse tracing is optional for running the application. Without these credentials, the investigation workflow still runs, but traces are not sent to Langfuse.
+
 Ingest the local enterprise document corpus:
 
 ```bash
